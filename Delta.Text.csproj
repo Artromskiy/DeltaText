@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Delta.Text</AssemblyName>
+    <RootNamespace>Delta.Text</RootNamespace>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+    <None Remove="Tests/**/*.ttf" />
+    <None Remove="Tests/OFL.txt" />
+  </ItemGroup>
+
+  <!-- The managed HarfBuzzSharp wrapper is deliberately not used. Delta.Text owns
+       the small ABI surface in NativeHarfBuzz.cs; these packages only supply the
+       platform native HarfBuzz binary. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="7.3.0.2" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.2" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="7.3.0.2" />
+  </ItemGroup>
+</Project>
