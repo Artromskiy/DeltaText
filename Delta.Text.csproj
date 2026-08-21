@@ -15,6 +15,20 @@
     <None Remove="Tests/OFL.txt" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.8" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.8" />
+  </ItemGroup>
+
   <!-- The managed HarfBuzzSharp wrapper is deliberately not used. Delta.Text owns
        the small ABI surface in NativeHarfBuzz.cs; these packages only supply the
        platform native HarfBuzz binary. -->

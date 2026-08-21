@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using SkiaSharp;
 
 namespace Delta.Text;
 
@@ -24,6 +25,7 @@ public sealed class FontFace : IDisposable
     public FontKey Key { get; }
     public int UnitsPerEm { get; }
     public FontMetrics Metrics { get; }
+    internal ReadOnlyMemory<byte> FontData => _fontData;
 
     public static FontFace LoadFile(FontKey key, string path, uint faceIndex = 0)
     {
@@ -63,6 +65,13 @@ public sealed class FontFace : IDisposable
     {
         ThrowIfDisposed();
         return NativeHarfBuzz.GetGlyphMetrics(_font, glyphId, UnitsPerEm);
+    }
+
+    internal SKTypeface CreateTypeface()
+    {
+        ThrowIfDisposed();
+        var data = SKData.CreateCopy(_fontData);
+        return SKTypeface.FromData(data) ?? throw new InvalidOperationException("Skia could not create a typeface for the font data.");
     }
 
     public ShapedGlyphRun Shape(TextShapingRequest request)

@@ -26,6 +26,10 @@ Xamy or Rend contracts.
 - `msdfgen` is a good future CPU MSDF implementation behind
   `IGlyphAtlasGenerator`. It is MIT, but atlas generation is intentionally not
   implemented here and no GPU/Vulkan code belongs in Delta.Text.
+- The current atlas backend uses SkiaSharp as the native font/path provider for
+  the CPU grayscale SDF fallback. That keeps the renderer-neutral contract real
+  without inventing a managed rasterizer. `SkiaSharp` and its native assets are
+  packaged separately and remain an implementation detail.
 - CoreText and DirectWrite belong in platform adapters. The core contracts use
   bytes/files and do not perform OS font discovery implicitly.
 

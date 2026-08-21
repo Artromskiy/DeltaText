@@ -169,6 +169,11 @@ public enum GlyphAtlasMode
 
 public readonly record struct GlyphAtlasGlyph(
     uint GlyphId,
+    int PageIndex,
+    float U0,
+    float V0,
+    float U1,
+    float V1,
     int Width,
     int Height,
     int Stride,
@@ -177,8 +182,15 @@ public readonly record struct GlyphAtlasGlyph(
     float AdvanceX,
     ReadOnlyMemory<byte> Pixels);
 
+public readonly record struct GlyphAtlasPage(
+    int PageIndex,
+    int Width,
+    int Height,
+    ReadOnlyMemory<byte> Pixels);
+
 public readonly record struct GlyphAtlasResult(
     GlyphAtlasRequest Request,
+    ReadOnlyMemory<GlyphAtlasPage> Pages,
     ReadOnlyMemory<GlyphAtlasGlyph> Glyphs);
 
 public interface IGlyphAtlasGenerator
