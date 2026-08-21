@@ -1,51 +1,30 @@
 # Delta.Text
 
-`Delta.Text` is the renderer-neutral CPU text layer for Furnace. It owns font
-identity, OpenType shaping, glyph metrics, positioned glyph runs and the CPU
-atlas contract that turns shaped glyphs into pixels. It does not know about
-XAML, Vulkan, SDL, DeltaRender or shaders.
+Renderer-neutral CPU text layer for Furnace. It owns font identity, OpenType
+shaping, glyph metrics/outlines, positioned glyph runs and CPU glyph bitmap
+generation. It has no XAML, Vulkan, SDL, DeltaRender or shader dependency.
 
-The first backend is a deliberately small P/Invoke surface over the native
-HarfBuzz ABI. The managed HarfBuzzSharp object model is not exposed and is not
-a runtime dependency. HarfBuzz native assets are selected by target platform in
-`Delta.Text.csproj`.
+The backend uses a small owned P/Invoke surface over HarfBuzz for shaping and
+glyph outlines. Consumers pass positioned glyphs to the renderer, never the
+original string. `GlyphAtlasRequest` and `GlyphAtlasResult` form the CPU atlas
+boundary and carry pixels, UVs, bounds, bearings, advances and page metadata.
 
 ```csharp
+using System.Globalization;
 using Delta.Text;
 
-using var face = FontFace.LoadFile(
-    new FontKey("NotoSans-Regular", "regular", "fixture:noto-sans"),
-    "NotoSans-Regular.ttf");
-
-var request = new TextShapingRequest("office Привет", 24, CultureInfo.InvariantCulture);
-var run = face.Shape(request);
-
+var key = new FontKey("NotoSans-Regular", "regular", "fixture:noto-sans");
+using var face = FontFace.LoadFile(key, "NotoSans-Regular.ttf");
+var run = face.Shape(new TextShapingRequest(
+    "office Привет", 24, CultureInfo.InvariantCulture));
 foreach (var glyph in run.PositionedGlyphs.Span)
-    SubmitGlyph(face.Key, glyph.GlyphId, glyph.Position, glyph.Advance);
+    SubmitGlyph(face.Key, glyph);
 ```
 
-Consumers pass positioned glyph runs to a renderer. They do not pass the
-original string to a renderer. `GlyphAtlasRequest` is an explicit CPU atlas
-boundary and `GlyphAtlasResult` carries page pixels plus glyph UVs, bounds,
-bearing, advance and page index metadata.
+Grayscale SDF is the fallback. The native msdfgen bridge accepts contours from
+HarfBuzz and remains gated until ABI/lifetime smokes pass on supported targets.
+FreeType is not an engine dependency.
 
-The current atlas backend is a deterministic CPU grayscale signed-distance
-fallback. `GlyphAtlasMode.Msdf` and `GlyphAtlasMode.Mtsdf` are declared in the
-contract, but they are intentionally blocked until a native `msdfgen` backend
-is verified on all supported platforms.
-
-Export a Rend smoke fixture with:
-
-```text
-dotnet run --project Tests/Delta.Text.Tests.csproj -c Release -- --export-atlas-fixture <output-directory>
-```
-
-## Build and test
-
-```text
-dotnet build Delta.Text.csproj -c Release --no-restore
-dotnet run --project Tests/Delta.Text.Tests.csproj -c Release
-```
-
-The tests use Noto Sans and Noto Sans Arabic fixtures under the SIL Open Font
-License 1.1. See `THIRD-PARTY-NOTICES.md` and `DECISIONS.md`.
+See [DECISIONS.md](DECISIONS.md) for backend choices,
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for licenses,
+[WORKFLOW.md](WORKFLOW.md) for commands and [TODO.md](TODO.md) for selected work.
