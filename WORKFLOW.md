@@ -25,3 +25,9 @@ dotnet run --project Tests/Delta.Text.Tests.csproj -c Release -- \
 
 Verify ownership/disposal on both success and failure paths. Do not infer
 cross-platform native success from one macOS run.
+
+## Code metrics
+
+Run the manual GitHub Actions `Code metrics` workflow when maintainability
+evidence is needed. It enables CA1501/CA1502/CA1505/CA1506 as report-only
+diagnostics and uploads the SARIF, build log and exit summary as artifacts.
