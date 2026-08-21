@@ -66,6 +66,10 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
 
     private CachedGlyph BuildGlyph(FontFace face, SKFont font, GlyphAtlasKey key)
     {
+        if (key.Mode == GlyphAtlasMode.Msdf)
+            throw new NotSupportedException("msdfgen native bridge is present but not enabled until its contour ABI smoke is green on all supported targets.");
+        if (key.Mode == GlyphAtlasMode.Mtsdf)
+            throw new NotSupportedException("MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
         using var path = font.GetGlyphPath(checked((ushort)key.GlyphId));
         if (path is null || path.IsEmpty)
         {
@@ -99,7 +103,7 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
         var pixels = key.Mode switch
         {
             GlyphAtlasMode.Grayscale => BuildSignedDistanceField(baseBitmap, distanceRange),
-            GlyphAtlasMode.Msdf or GlyphAtlasMode.Mtsdf => throw new NotSupportedException("MSDF/MTSDF generation is blocked until a native msdfgen backend is available and verified for all supported platforms."),
+            GlyphAtlasMode.Msdf or GlyphAtlasMode.Mtsdf => throw new InvalidOperationException("Unreachable atlas mode."),
             _ => throw new NotSupportedException($"Unsupported atlas mode: {key.Mode}")
         };
 

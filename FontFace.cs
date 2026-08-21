@@ -26,6 +26,7 @@ public sealed class FontFace : IDisposable
     public int UnitsPerEm { get; }
     public FontMetrics Metrics { get; }
     internal ReadOnlyMemory<byte> FontData => _fontData;
+    internal IntPtr NativeFont => _font;
 
     public static FontFace LoadFile(FontKey key, string path, uint faceIndex = 0)
     {

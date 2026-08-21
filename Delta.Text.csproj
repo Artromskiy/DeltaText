@@ -10,6 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="native/DeltaTextMsdf.h" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="third_party/msdfgen/LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
     <Compile Remove="Tests/**/*.cs" />
     <None Remove="Tests/**/*.ttf" />
     <None Remove="Tests/OFL.txt" />
