@@ -83,7 +83,7 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
         var scale = 1f;
         var glyphWidth = Math.Max(1, (int)Math.Ceiling(bounds.Width)) + padding * 2 + 2;
         var glyphHeight = Math.Max(1, (int)Math.Ceiling(bounds.Height)) + padding * 2 + 2;
-        var baseBitmap = new SKBitmap(glyphWidth, glyphHeight, SKColorType.Gray8, SKAlphaType.Opaque);
+        using var baseBitmap = new SKBitmap(glyphWidth, glyphHeight, SKColorType.Gray8, SKAlphaType.Opaque);
         baseBitmap.Erase(SKColors.Black);
 
         using (var canvas = new SKCanvas(baseBitmap))

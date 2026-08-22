@@ -71,7 +71,7 @@ public sealed class FontFace : IDisposable
     internal SKTypeface CreateTypeface()
     {
         ThrowIfDisposed();
-        var data = SKData.CreateCopy(_fontData);
+        using var data = SKData.CreateCopy(_fontData);
         return SKTypeface.FromData(data) ?? throw new InvalidOperationException("Skia could not create a typeface for the font data.");
     }
 

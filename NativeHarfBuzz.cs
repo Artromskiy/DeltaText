@@ -136,7 +136,7 @@ internal static unsafe class NativeHarfBuzz
     {
         var advance = hb_font_get_glyph_h_advance(font, glyph);
         var extents = default(GlyphExtents);
-        hb_font_get_glyph_extents(font, glyph, out extents);
+        _ = hb_font_get_glyph_extents(font, glyph, out extents);
         return new GlyphMetrics(glyph, advance, 0, extents.XBearing, extents.YBearing, extents.Width, extents.Height, unitsPerEm);
     }
 
