@@ -36,7 +36,11 @@ public sealed class FontFace : IDisposable
 
     public static FontFace FromBytes(FontKey key, ReadOnlyMemory<byte> data, uint faceIndex = 0)
     {
-        if (data.IsEmpty) throw new ArgumentException("A font face cannot be empty.", nameof(data));
+        if (data.IsEmpty)
+        {
+            throw new ArgumentException("A font face cannot be empty.", nameof(data));
+        }
+
         var ownedData = data.ToArray();
         var font = NativeHarfBuzz.CreateFont(ownedData, faceIndex, out var blob, out var face, out var unitsPerEm);
         try
@@ -115,7 +119,9 @@ public sealed class FontFace : IDisposable
         }
 
         if (rawGlyphs.Count == 0)
+        {
             bottom = top = 0;
+        }
         else
         {
             bottom = Math.Min(bottom, Metrics.Descender * scale);
@@ -128,7 +134,10 @@ public sealed class FontFace : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
             NativeHarfBuzz.DestroyFont(_font, _face, _blob);
+        }
+
         GC.KeepAlive(_fontData);
     }
 
@@ -162,10 +171,16 @@ public sealed class FontFace : IDisposable
             for (var i = 0; i < tableCount; i++)
             {
                 var record = 12 + i * 16;
-                if (record + 16 > data.Length || ReadTag(data, record) != "hhea") continue;
+                if (record + 16 > data.Length || ReadTag(data, record) != "hhea")
+                {
+                    continue;
+                }
+
                 var offset = checked((int)ReadUInt32(data, record + 8));
                 if (offset >= 0 && offset + 10 <= data.Length)
+                {
                     return new FontMetrics(unitsPerEm, ReadInt16(data, offset + 4), ReadInt16(data, offset + 6), ReadInt16(data, offset + 8));
+                }
             }
         }
         return new FontMetrics(unitsPerEm, unitsPerEm, -unitsPerEm / 4, 0);

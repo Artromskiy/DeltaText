@@ -30,10 +30,17 @@ public sealed class TextShaper
 
         private static string MakeFeatureKey(ReadOnlySpan<TextFeature> features)
         {
-            if (features.IsEmpty) return string.Empty;
+            if (features.IsEmpty)
+            {
+                return string.Empty;
+            }
+
             var builder = new System.Text.StringBuilder(features.Length * 6);
             foreach (var feature in features)
+            {
                 builder.Append(feature.Tag).Append(feature.Enabled ? '1' : '0').Append(';');
+            }
+
             return builder.ToString();
         }
     }

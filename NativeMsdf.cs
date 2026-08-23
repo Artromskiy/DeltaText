@@ -14,7 +14,11 @@ internal static class NativeMsdf
     internal static bool TryGenerate(GlyphContours contours, int pixelSize, int unitsPerEm, int padding, float distanceRange, out int width, out int height, out ReadOnlyMemory<byte> pixels)
     {
         width = height = 0; pixels = default;
-        if (contours.Contours.Count == 0) return false;
+        if (contours.Contours.Count == 0)
+        {
+            return false;
+        }
+
         var pins = new GCHandle[contours.Contours.Count];
         var nativeContours = new Contour[pins.Length];
         try
@@ -24,12 +28,19 @@ internal static class NativeMsdf
                 var source = contours.Contours[i];
                 var points = new Point[source.Count];
                 for (var j = 0; j < points.Length; j++)
+                {
                     points[j] = new Point { X = source[j].X, Y = source[j].Y, Kind = (byte)source[j].Kind };
+                }
+
                 pins[i] = GCHandle.Alloc(points, GCHandleType.Pinned);
                 nativeContours[i] = new Contour { Points = pins[i].AddrOfPinnedObject(), Count = points.Length };
             }
             var status = deltatext_generate_msdf_from_contours(nativeContours, nativeContours.Length, pixelSize, unitsPerEm, padding, distanceRange, 0xD37A5EEDu, out var bitmap);
-            if (status != 0 || bitmap.Pixels == IntPtr.Zero) return false;
+            if (status != 0 || bitmap.Pixels == IntPtr.Zero)
+            {
+                return false;
+            }
+
             try
             {
                 var managed = new byte[bitmap.Length];
@@ -39,6 +50,15 @@ internal static class NativeMsdf
             }
             finally { deltatext_msdf_free(bitmap.Pixels); }
         }
-        finally { for (var i = 0; i < pins.Length; i++) if (pins[i].IsAllocated) pins[i].Free(); }
+        finally
+        {
+            for (var i = 0; i < pins.Length; i++)
+            {
+                if (pins[i].IsAllocated)
+                {
+                    pins[i].Free();
+                }
+            }
+        }
     }
 }

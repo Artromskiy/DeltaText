@@ -48,7 +48,11 @@ internal static unsafe partial class NativeHarfBuzzOutline
         ArgumentNullException.ThrowIfNull(output);
         using var callbacks = new CallbackState(output);
         var funcs = hb_draw_funcs_create();
-        if (funcs == IntPtr.Zero) throw new InvalidOperationException("HarfBuzz could not create draw functions.");
+        if (funcs == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("HarfBuzz could not create draw functions.");
+        }
+
         try
         {
             hb_draw_funcs_set_move_to_func(funcs, Move, callbacks.Handle, IntPtr.Zero);

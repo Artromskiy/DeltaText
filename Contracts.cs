@@ -6,9 +6,21 @@ public readonly record struct FontKey
 {
     public FontKey(string family, string style, string sourceId)
     {
-        if (string.IsNullOrWhiteSpace(family)) throw new ArgumentException("A font family is required.", nameof(family));
-        if (string.IsNullOrWhiteSpace(style)) throw new ArgumentException("A font style is required.", nameof(style));
-        if (string.IsNullOrWhiteSpace(sourceId)) throw new ArgumentException("A stable font source identity is required.", nameof(sourceId));
+        if (string.IsNullOrWhiteSpace(family))
+        {
+            throw new ArgumentException("A font family is required.", nameof(family));
+        }
+
+        if (string.IsNullOrWhiteSpace(style))
+        {
+            throw new ArgumentException("A font style is required.", nameof(style));
+        }
+
+        if (string.IsNullOrWhiteSpace(sourceId))
+        {
+            throw new ArgumentException("A stable font source identity is required.", nameof(sourceId));
+        }
+
         Family = family;
         Style = style;
         SourceId = sourceId;
@@ -44,7 +56,11 @@ public readonly record struct TextFeature
 {
     public TextFeature(string tag, bool enabled = true)
     {
-        if (tag is null || tag.Length != 4) throw new ArgumentException("OpenType feature tags must contain four characters.", nameof(tag));
+        if (tag is null || tag.Length != 4)
+        {
+            throw new ArgumentException("OpenType feature tags must contain four characters.", nameof(tag));
+        }
+
         Tag = tag;
         Enabled = enabled;
     }
@@ -63,7 +79,11 @@ public readonly record struct TextShapingRequest
         ReadOnlyMemory<TextFeature> features = default)
     {
         ArgumentNullException.ThrowIfNull(text);
-        if (!(size > 0) || float.IsNaN(size) || float.IsInfinity(size)) throw new ArgumentOutOfRangeException(nameof(size));
+        if (!(size > 0) || float.IsNaN(size) || float.IsInfinity(size))
+        {
+            throw new ArgumentOutOfRangeException(nameof(size));
+        }
+
         Text = text;
         Size = size;
         Culture = culture ?? CultureInfo.InvariantCulture;
@@ -143,7 +163,11 @@ public readonly record struct GlyphAtlasRequest
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pixelSize);
         ArgumentOutOfRangeException.ThrowIfNegative(padding);
-        if (!(distanceRange > 0)) throw new ArgumentOutOfRangeException(nameof(distanceRange));
+        if (!(distanceRange > 0))
+        {
+            throw new ArgumentOutOfRangeException(nameof(distanceRange));
+        }
+
         Font = font;
         GlyphIds = glyphIds;
         PixelSize = pixelSize;

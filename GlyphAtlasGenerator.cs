@@ -47,7 +47,9 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
             {
                 var pages = PackPages(cachedGlyphs, pageSize, request.Padding, request.Mode == GlyphAtlasMode.Msdf ? 3 : 1);
                 if (pages.Count > 0)
+                {
                     return BuildResult(request, pages);
+                }
 
                 pageSize *= 2;
             }
@@ -67,9 +69,15 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
     private CachedGlyph BuildGlyph(FontFace face, SKFont font, GlyphAtlasKey key)
     {
         if (key.Mode == GlyphAtlasMode.Msdf)
+        {
             return BuildMsdfGlyph(face, key);
+        }
+
         if (key.Mode == GlyphAtlasMode.Mtsdf)
+        {
             throw new NotSupportedException("MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
+        }
+
         using var path = font.GetGlyphPath(checked((ushort)key.GlyphId));
         if (path is null || path.IsEmpty)
         {
@@ -133,7 +141,10 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
         }
 
         if (!NativeMsdf.TryGenerate(contours, key.PixelSize, face.UnitsPerEm, key.Padding, key.DistanceRange, out var width, out var height, out var pixels))
+        {
             throw new InvalidOperationException("The native msdfgen backend could not generate the glyph bitmap.");
+        }
+
         var metrics = face.GetGlyphMetrics(key.GlyphId);
         var scale = key.PixelSize / (float)face.UnitsPerEm;
         return CachedGlyph.Create(key.GlyphId, key.Mode, key.PixelSize, width, height, width * 3,
@@ -167,15 +178,26 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
                     for (var xx = 0; xx < width; xx++)
                     {
                         var other = source[yy * width + xx] > 127;
-                        if (other == inside) continue;
+                        if (other == inside)
+                        {
+                            continue;
+                        }
+
                         var dx = xx - x;
                         var dy = yy - y;
                         var distance = MathF.Sqrt(dx * dx + dy * dy);
-                        if (distance < best) best = distance;
+                        if (distance < best)
+                        {
+                            best = distance;
+                        }
                     }
                 }
 
-                if (best == float.MaxValue) best = range;
+                if (best == float.MaxValue)
+                {
+                    best = range;
+                }
+
                 var signed = inside ? best : -best;
                 var value = 0.5f + signed / (2f * range);
                 output[y * width + x] = (byte)Math.Clamp((int)MathF.Round(value * 255f), 0, 255);
@@ -196,7 +218,9 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
                 pages.Add(current.FinalizePage(pages.Count));
                 current = new PageBuild(pageSize, channels);
                 if (!current.TryPlace(glyph, padding))
+                {
                     return new List<PageResult>();
+                }
             }
         }
 
@@ -220,7 +244,11 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
     private static int NextPowerOfTwo(int value)
     {
         var v = 1;
-        while (v < value) v <<= 1;
+        while (v < value)
+        {
+            v <<= 1;
+        }
+
         return v;
     }
 
@@ -233,11 +261,19 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
 
         private static string MakeGlyphIdsKey(ReadOnlySpan<uint> glyphIds)
         {
-            if (glyphIds.IsEmpty) return string.Empty;
+            if (glyphIds.IsEmpty)
+            {
+                return string.Empty;
+            }
+
             var builder = new System.Text.StringBuilder(glyphIds.Length * 4);
             for (var i = 0; i < glyphIds.Length; i++)
             {
-                if (i != 0) builder.Append(',');
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 builder.Append(glyphIds[i]);
             }
             return builder.ToString();
@@ -305,14 +341,21 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
         {
             var placedWidth = glyph.Width + padding * 2;
             var placedHeight = glyph.Height + padding * 2;
-            if (placedWidth > Size || placedHeight > Size) return false;
+            if (placedWidth > Size || placedHeight > Size)
+            {
+                return false;
+            }
+
             if (_x + placedWidth > Size)
             {
                 _x = 0;
                 _y += _rowHeight;
                 _rowHeight = 0;
             }
-            if (_y + placedHeight > Size) return false;
+            if (_y + placedHeight > Size)
+            {
+                return false;
+            }
 
             Blit(glyph.Pixels.Span, glyph.Stride, glyph.Width, glyph.Height, _x + padding, _y + padding);
             var u0 = _x / (float)Size;

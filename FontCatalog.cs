@@ -16,12 +16,20 @@ public sealed class FileFontCatalog
         var sources = new List<FontSource>();
         foreach (var root in roots)
         {
-            if (!Directory.Exists(root)) continue;
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+
             foreach (var path in Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories))
             {
                 var extension = Path.GetExtension(path);
                 if (!extension.Equals(".ttf", StringComparison.OrdinalIgnoreCase) &&
-                    !extension.Equals(".otf", StringComparison.OrdinalIgnoreCase)) continue;
+                    !extension.Equals(".otf", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var name = Path.GetFileNameWithoutExtension(path);
                 sources.Add(new FontSource(new FontKey(name, "regular", path), path));
             }

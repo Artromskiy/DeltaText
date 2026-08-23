@@ -105,7 +105,11 @@ internal static unsafe class NativeHarfBuzz
             blob = hb_blob_create((IntPtr)dataPtr, checked((uint)data.Length), MemoryDuplicate, IntPtr.Zero, IntPtr.Zero);
         }
 
-        if (blob == IntPtr.Zero) throw new InvalidOperationException("HarfBuzz could not create a font blob.");
+        if (blob == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("HarfBuzz could not create a font blob.");
+        }
+
         face = hb_face_create(blob, faceIndex);
         if (face == IntPtr.Zero)
         {
@@ -155,14 +159,23 @@ internal static unsafe class NativeHarfBuzz
         List<ShapedGlyph> output)
     {
         var buffer = hb_buffer_create();
-        if (buffer == IntPtr.Zero) throw new InvalidOperationException("HarfBuzz could not create a shaping buffer.");
+        if (buffer == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("HarfBuzz could not create a shaping buffer.");
+        }
 
         try
         {
             fixed (char* textPtr = text)
+            {
                 hb_buffer_add_utf16(buffer, textPtr, text.Length, 0, text.Length);
+            }
+
             if (direction != TextDirection.Auto)
+            {
                 hb_buffer_set_direction(buffer, ToDirection(direction));
+            }
+
             hb_buffer_guess_segment_properties(buffer);
 
             var features = stackalloc Feature[requestedFeatures.Length];
@@ -199,9 +212,20 @@ internal static unsafe class NativeHarfBuzz
 
     internal static void DestroyFont(IntPtr font, IntPtr face, IntPtr blob)
     {
-        if (font != IntPtr.Zero) hb_font_destroy(font);
-        if (face != IntPtr.Zero) hb_face_destroy(face);
-        if (blob != IntPtr.Zero) hb_blob_destroy(blob);
+        if (font != IntPtr.Zero)
+        {
+            hb_font_destroy(font);
+        }
+
+        if (face != IntPtr.Zero)
+        {
+            hb_face_destroy(face);
+        }
+
+        if (blob != IntPtr.Zero)
+        {
+            hb_blob_destroy(blob);
+        }
     }
 
     private static uint ToDirection(TextDirection direction) => direction switch
