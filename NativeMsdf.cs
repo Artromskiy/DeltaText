@@ -13,6 +13,7 @@ internal static class NativeMsdf
 
     internal static bool TryGenerate(GlyphContours contours, int pixelSize, int unitsPerEm, int padding, float distanceRange, out int width, out int height, out ReadOnlyMemory<byte> pixels)
     {
+        NativeLibraryResolver.EnsureInitialized();
         width = height = 0; pixels = default;
         if (contours.Contours.Count == 0)
         {

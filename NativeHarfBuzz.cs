@@ -98,6 +98,7 @@ internal static unsafe class NativeHarfBuzz
 
     internal static IntPtr CreateFont(ReadOnlySpan<byte> data, uint faceIndex, out IntPtr blob, out IntPtr face, out int unitsPerEm)
     {
+        NativeLibraryResolver.EnsureInitialized();
         face = IntPtr.Zero;
         unitsPerEm = 0;
         fixed (byte* dataPtr = data)

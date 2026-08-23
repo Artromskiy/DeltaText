@@ -45,6 +45,7 @@ internal static unsafe partial class NativeHarfBuzzOutline
 
     internal static bool TryRead(IntPtr font, uint glyph, GlyphContours output)
     {
+        NativeLibraryResolver.EnsureInitialized();
         ArgumentNullException.ThrowIfNull(output);
         using var callbacks = new CallbackState(output);
         var funcs = hb_draw_funcs_create();

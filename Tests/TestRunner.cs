@@ -76,21 +76,12 @@ internal static class TestRunner
         foreach (var page in result.Pages.Span)
         {
             var pixelData = page.Pixels.ToArray();
-            // SkiaSharp owns a native bitmap handle; this using scope is the
-            // explicit owner. CA2000 cannot see ownership through its native ABI.
-#pragma warning disable CA2000
-            using var bitmap = new SKBitmap();
-#pragma warning restore CA2000
             var handle = GCHandle.Alloc(pixelData, GCHandleType.Pinned);
             try
             {
                 var info = new SKImageInfo(page.Width, page.Height, SKColorType.Gray8, SKAlphaType.Opaque);
-                if (!bitmap.InstallPixels(info, handle.AddrOfPinnedObject(), info.RowBytes))
-                {
-                    throw new InvalidOperationException("Failed to install atlas pixels.");
-                }
-
-                SaveBitmap(bitmap, Path.Combine(exportRoot, $"page-{page.PageIndex:000}.png"));
+                using var image = SKImage.FromPixels(info, handle.AddrOfPinnedObject(), info.RowBytes);
+                SaveImage(image, Path.Combine(exportRoot, $"page-{page.PageIndex:000}.png"));
             }
             finally
             {
@@ -101,9 +92,8 @@ internal static class TestRunner
         File.WriteAllText(Path.Combine(exportRoot, "atlas.json"), BuildAtlasSummary(result));
     }
 
-    private static void SaveBitmap(SKBitmap bitmap, string path)
+    private static void SaveImage(SKImage image, string path)
     {
-        using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.Read);
         data.SaveTo(stream);
