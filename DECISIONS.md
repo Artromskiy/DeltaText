@@ -11,9 +11,10 @@ stable managed arrays.
 ## Distance fields
 
 Grayscale SDF remains the cheap fallback. DeltaText vendors only the minimal
-msdfgen core and owns a narrow C ABI that accepts HarfBuzz contours. MSDF is not
-enabled as production output until native build, allocation/free and contour
-correctness smokes pass on every supported platform.
+msdfgen core and owns a narrow C ABI that accepts HarfBuzz contours. MSDF is
+enabled when the target native bridge is present; it emits deterministic RGB8
+pixels and copies then frees the native allocation immediately. MTSDF remains
+outside the current contract.
 
 SkiaSharp remains an implementation detail of the existing grayscale fallback.
 FreeType is deliberately not an engine dependency. Future CoreText or

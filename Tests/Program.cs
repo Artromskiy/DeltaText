@@ -15,7 +15,7 @@ var tests = new (string Name, Action Body)[]
     ("Arabic RTL ordering and clusters", ArabicShaping),
     ("positioned run and stable cache output", CacheAndPositionedRun),
     ("grayscale atlas generator and export smoke", AtlasSmoke),
-    ("MSDF blocker is explicit", MsdfBlocker)
+    ("MSDF native atlas smoke", MsdfSmoke)
 };
 
 var passed = 0;
@@ -167,6 +167,7 @@ void CacheAndPositionedRun()
     Check(first.Glyphs.Length == first.PositionedGlyphs.Length, "run arrays are not aligned");
     Check(first.PositionedGlyphs.Span[0].X == 0, "first glyph is not positioned at the origin");
     Check(first.PositionedGlyphs.Span[1].X >= first.PositionedGlyphs.Span[0].X, "glyph positions are not cumulative");
+    Check(first.PositionedGlyphs.Span[1].AdvanceX > 0, "native glyph-position stride produced an empty advance");
 }
 
 void AtlasSmoke()
@@ -187,14 +188,47 @@ void AtlasSmoke()
     Check(first.Pages.Span[0].Pixels.Span.ToArray().Any(static b => b != 0), "atlas page is empty");
 }
 
-void MsdfBlocker()
+void MsdfSmoke()
 {
     using var face = LoadLatin();
     var generator = new GlyphAtlasGenerator();
-    var request = new GlyphAtlasRequest(face.Key, new uint[] { face.GetGlyphId('A') }, 40, 6, 8, GlyphAtlasMode.Msdf);
-    var error = AssertThrows<NotSupportedException>(() => generator.Generate(face, request));
-    Check(error.Message.Contains("msdfgen", StringComparison.OrdinalIgnoreCase), "MSDF blocker message is not explicit");
+    var glyphs = new uint[] { 0, face.GetGlyphId('A'), face.GetGlyphId('V'), face.GetGlyphId('g') };
+    var request = new GlyphAtlasRequest(face.Key, glyphs, 40, 6, 8, GlyphAtlasMode.Msdf);
+    try
+    {
+        var first = generator.Generate(face, request);
+        var second = generator.Generate(face, request);
+        Check(first.Pages.Length > 0 && first.Pages.Span[0].Pixels.Length == first.Pages.Span[0].Width * first.Pages.Span[0].Height * 3, "MSDF page is not RGB8");
+        Check(first.Glyphs.Span.ToArray().All(static glyph => glyph.Stride == glyph.Width * 3), "MSDF glyph stride is not RGB8");
+        Check(first.Pages.Span[0].Pixels.Span.ToArray().Any(static value => value != 0), "MSDF page is empty");
+        Check(first.Pages.Span[0].Pixels.Span.SequenceEqual(second.Pages.Span[0].Pixels.Span), "MSDF cache output is not stable");
+
+        var highDpi = generator.Generate(face, new GlyphAtlasRequest(face.Key, glyphs, 80, 10, 16, GlyphAtlasMode.Msdf));
+        Check(highDpi.Pages.Length > 0 && highDpi.Glyphs.Span.ToArray().Max(static glyph => glyph.Width) > first.Glyphs.Span.ToArray().Max(static glyph => glyph.Width), "MSDF DPI scaling did not change geometry");
+
+        using var arabicFace = LoadArabic();
+        var arabicGlyph = arabicFace.GetGlyphId('س');
+        var arabic = generator.Generate(arabicFace, new GlyphAtlasRequest(arabicFace.Key, new[] { arabicGlyph }, 40, 6, 8, GlyphAtlasMode.Msdf));
+        Check(arabic.Glyphs.Span[0].Stride == arabic.Glyphs.Span[0].Width * 3, "Arabic MSDF glyph is not RGB8");
+    }
+    catch (DllNotFoundException)
+    {
+        // The managed package does not build native binaries implicitly. The
+        // native smoke is run by the platform packaging job when the library
+        // is present beside the test executable.
+        if (RequireNativeSmoke())
+            throw new InvalidOperationException("Native MSDF smoke was required, but DeltaTextMsdf could not be loaded.");
+    }
+    catch (EntryPointNotFoundException)
+    {
+        throw new InvalidOperationException("DeltaTextMsdf is present but its ABI is incomplete.");
+    }
 }
+
+bool RequireNativeSmoke() => string.Equals(
+    Environment.GetEnvironmentVariable("DELTATEXT_REQUIRE_NATIVE_SMOKE"),
+    "1",
+    StringComparison.OrdinalIgnoreCase);
 
 FontFace LoadLatin() => FontFace.LoadFile(
     new FontKey("NotoSans", "regular", "fixture:noto-sans"),
@@ -209,18 +243,4 @@ string FixtureDirectory() => Path.Combine(AppContext.BaseDirectory, "Fixtures");
 static void Check(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
-}
-
-static T AssertThrows<T>(Action action) where T : Exception
-{
-    try
-    {
-        action();
-    }
-    catch (T error)
-    {
-        return error;
-    }
-
-    throw new InvalidOperationException($"Expected {typeof(T).Name}.");
 }

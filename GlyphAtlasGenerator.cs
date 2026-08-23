@@ -45,7 +45,7 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
             var pageSize = NextPowerOfTwo(Math.Max(256, Math.Max(maxEdge + request.Padding * 2 + 4, (int)Math.Ceiling(Math.Sqrt(totalArea * 1.25)))));
             while (true)
             {
-                var pages = PackPages(cachedGlyphs, pageSize, request.Padding);
+                var pages = PackPages(cachedGlyphs, pageSize, request.Padding, request.Mode == GlyphAtlasMode.Msdf ? 3 : 1);
                 if (pages.Count > 0)
                     return BuildResult(request, pages);
 
@@ -67,7 +67,7 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
     private CachedGlyph BuildGlyph(FontFace face, SKFont font, GlyphAtlasKey key)
     {
         if (key.Mode == GlyphAtlasMode.Msdf)
-            throw new NotSupportedException("msdfgen native bridge is present but not enabled until its contour ABI smoke is green on all supported targets.");
+            return BuildMsdfGlyph(face, key);
         if (key.Mode == GlyphAtlasMode.Mtsdf)
             throw new NotSupportedException("MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
         using var path = font.GetGlyphPath(checked((ushort)key.GlyphId));
@@ -123,6 +123,23 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
             pixels);
     }
 
+    private static CachedGlyph BuildMsdfGlyph(FontFace face, GlyphAtlasKey key)
+    {
+        var contours = new GlyphContours();
+        if (!NativeHarfBuzzOutline.TryRead(face.NativeFont, key.GlyphId, contours))
+        {
+            var advance = face.GetGlyphMetrics(key.GlyphId).AdvanceX * key.PixelSize / (float)face.UnitsPerEm;
+            return CachedGlyph.Empty(key.GlyphId, key.Mode, key.PixelSize, advance);
+        }
+
+        if (!NativeMsdf.TryGenerate(contours, key.PixelSize, face.UnitsPerEm, key.Padding, key.DistanceRange, out var width, out var height, out var pixels))
+            throw new InvalidOperationException("The native msdfgen backend could not generate the glyph bitmap.");
+        var metrics = face.GetGlyphMetrics(key.GlyphId);
+        var scale = key.PixelSize / (float)face.UnitsPerEm;
+        return CachedGlyph.Create(key.GlyphId, key.Mode, key.PixelSize, width, height, width * 3,
+            metrics.BearingX * scale, metrics.BearingY * scale, metrics.AdvanceX * scale, pixels);
+    }
+
     private static ReadOnlyMemory<byte> CopyPixels(SKBitmap bitmap)
     {
         var span = bitmap.GetPixelSpan();
@@ -168,16 +185,16 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
         return output;
     }
 
-    private static List<PageResult> PackPages(CachedGlyph[] glyphs, int pageSize, int padding)
+    private static List<PageResult> PackPages(CachedGlyph[] glyphs, int pageSize, int padding, int channels)
     {
         var pages = new List<PageResult>();
-        var current = new PageBuild(pageSize);
+        var current = new PageBuild(pageSize, channels);
         foreach (var glyph in glyphs)
         {
             if (!current.TryPlace(glyph, padding))
             {
                 pages.Add(current.FinalizePage(pages.Count));
-                current = new PageBuild(pageSize);
+                current = new PageBuild(pageSize, channels);
                 if (!current.TryPlace(glyph, padding))
                     return new List<PageResult>();
             }
@@ -260,21 +277,26 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
             => new(glyphId, mode, pixelSize, width, height, stride, bearingX, bearingY, advanceX, pixels);
 
         public static CachedGlyph Empty(uint glyphId, GlyphAtlasMode mode, int pixelSize, float advance)
-            => Create(glyphId, mode, pixelSize, 1, 1, 1, 0, 0, advance, new byte[] { 0 });
+        {
+            var channels = mode == GlyphAtlasMode.Msdf ? 3 : 1;
+            return Create(glyphId, mode, pixelSize, 1, 1, channels, 0, 0, advance, new byte[channels]);
+        }
     }
 
     private sealed class PageBuild
     {
         private readonly byte[] _pixels;
+        private readonly int _channels;
         private int _x;
         private int _y;
         private int _rowHeight;
         private readonly List<GlyphAtlasGlyph> _glyphs = new();
 
-        public PageBuild(int size)
+        public PageBuild(int size, int channels)
         {
             Size = size;
-            _pixels = new byte[size * size];
+            _channels = channels;
+            _pixels = new byte[size * size * channels];
         }
 
         public int Size { get; }
@@ -308,8 +330,8 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
             for (var row = 0; row < height; row++)
             {
                 var srcOffset = row * stride;
-                var dstOffset = (dstY + row) * Size + dstX;
-                source.Slice(srcOffset, width).CopyTo(_pixels.AsSpan(dstOffset, width));
+                var dstOffset = ((dstY + row) * Size + dstX) * _channels;
+                source.Slice(srcOffset, width * _channels).CopyTo(_pixels.AsSpan(dstOffset, width * _channels));
             }
         }
 

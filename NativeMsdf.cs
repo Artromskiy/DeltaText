@@ -30,11 +30,14 @@ internal static class NativeMsdf
             }
             var status = deltatext_generate_msdf_from_contours(nativeContours, nativeContours.Length, pixelSize, unitsPerEm, padding, distanceRange, 0xD37A5EEDu, out var bitmap);
             if (status != 0 || bitmap.Pixels == IntPtr.Zero) return false;
-            var managed = new byte[bitmap.Length];
-            Marshal.Copy(bitmap.Pixels, managed, 0, managed.Length);
-            width = bitmap.Width; height = bitmap.Height; pixels = managed;
-            deltatext_msdf_free(bitmap.Pixels);
-            return true;
+            try
+            {
+                var managed = new byte[bitmap.Length];
+                Marshal.Copy(bitmap.Pixels, managed, 0, managed.Length);
+                width = bitmap.Width; height = bitmap.Height; pixels = managed;
+                return true;
+            }
+            finally { deltatext_msdf_free(bitmap.Pixels); }
         }
         finally { for (var i = 0; i < pins.Length; i++) if (pins[i].IsAllocated) pins[i].Free(); }
     }

@@ -52,6 +52,7 @@ extern "C" DELTATEXT_MSDF_API int deltatext_generate_msdf_from_contours(
         for (int32_t i = 0; i < contour_count; ++i)
             if (!addContour(shape, contours[i])) return DELTATEXT_MSDF_INVALID_ARGUMENT;
         if (!shape.validate()) return DELTATEXT_MSDF_INVALID_CONTOUR;
+        shape.normalize();
         shape.orientContours();
         const Shape::Bounds bounds = shape.getBounds();
         const double scale = static_cast<double>(pixel_size) / units_per_em;

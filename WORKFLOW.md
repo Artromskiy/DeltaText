@@ -16,6 +16,27 @@ cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
 cmake --build native/build --config Release
 ```
 
+The `Native text bridge smoke` workflow builds and runs this bridge on
+`ubuntu-latest`, `macos-14` and `windows-latest`. It copies the resulting
+`libDeltaTextMsdf.so`, `libDeltaTextMsdf.dylib` or `DeltaTextMsdf.dll` beside
+the test executable before running the MSDF smoke. The Windows runner is the
+checked CI contract; local Windows packaging should ship the DLL beside
+`Delta.Text.dll` or the consuming executable.
+
+The workflow sets `DELTATEXT_REQUIRE_NATIVE_SMOKE=1`; missing or unloadable
+native output fails the job. A normal managed test run leaves that variable
+unset, so Gray8 remains usable without a native MSDF binary.
+
+| Target | Native output | Required runtime dependency |
+|---|---|---|
+| Linux x64 | `libDeltaTextMsdf.so` | system C++ runtime plus bundled msdfgen core and packaged HarfBuzz assets |
+| macOS arm64 | `libDeltaTextMsdf.dylib` | Apple C++ runtime plus bundled msdfgen core and packaged HarfBuzz assets |
+| Windows x64 | `DeltaTextMsdf.dll` | MSVC C++ runtime plus bundled msdfgen core and packaged HarfBuzz assets |
+
+No FreeType, Homebrew, vcpkg or other system font library is required by the
+bridge. The CI matrix is the platform evidence; a local macOS run does not
+claim Linux or Windows compatibility.
+
 Export the renderer fixture with:
 
 ```bash

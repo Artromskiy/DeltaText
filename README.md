@@ -21,9 +21,12 @@ foreach (var glyph in run.PositionedGlyphs.Span)
     SubmitGlyph(face.Key, glyph);
 ```
 
-Grayscale SDF is the fallback. The native msdfgen bridge accepts contours from
-HarfBuzz and remains gated until ABI/lifetime smokes pass on supported targets.
-FreeType is not an engine dependency.
+Grayscale SDF is the fallback. `GlyphAtlasMode.Msdf` uses the native msdfgen
+bridge and emits RGB8 pixels; the bridge must be built and placed beside the
+managed assembly for the target platform. Each page uses three bytes per
+pixel and each glyph's `Stride` is its width multiplied by three. HarfBuzz
+supplies the contours and FreeType is not an engine dependency. MTSDF remains
+unsupported.
 
 See [DECISIONS.md](DECISIONS.md) for backend choices,
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for licenses,

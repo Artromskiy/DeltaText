@@ -38,6 +38,10 @@ internal static unsafe class NativeHarfBuzz
         public int YAdvance;
         public int XOffset;
         public int YOffset;
+        // hb_glyph_position_t also carries hb_var_int_t var. Keep the
+        // managed stride identical to HarfBuzz so the next position is not
+        // read from the middle of the native record.
+        public uint Var;
     }
 
     [StructLayout(LayoutKind.Sequential)]
