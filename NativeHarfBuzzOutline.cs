@@ -71,7 +71,11 @@ internal static unsafe partial class NativeHarfBuzzOutline
         public void Dispose() => Pin.Free();
     }
 
-    private static CallbackState State(IntPtr p) => (CallbackState)GCHandle.FromIntPtr(p).Target!;
+    private static CallbackState State(IntPtr p)
+    {
+        var target = GCHandle.FromIntPtr(p).Target;
+        return target as CallbackState ?? throw new InvalidOperationException("HarfBuzz callback state was not available.");
+    }
     private static readonly MoveToFunc Move = static (_, _, _, x, y, data) => State(data).Contours.BeginContour(x, y);
     private static readonly LineToFunc Line = static (_, _, _, x, y, data) => State(data).Contours.LineTo(x, y);
     private static readonly QuadraticToFunc Quadratic = static (_, _, _, cx, cy, x, y, data) => State(data).Contours.QuadraticTo(cx, cy, x, y);

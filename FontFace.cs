@@ -30,7 +30,7 @@ public sealed class FontFace : IDisposable
 
     public static FontFace LoadFile(FontKey key, string path, uint faceIndex = 0)
     {
-        if (path is null) throw new ArgumentNullException(nameof(path));
+        ArgumentNullException.ThrowIfNull(path);
         return FromBytes(key, File.ReadAllBytes(path), faceIndex);
     }
 
@@ -52,7 +52,7 @@ public sealed class FontFace : IDisposable
 
     public static FontFace LoadFile(string family, string style, string path, uint faceIndex = 0)
     {
-        var sourceId = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+        var sourceId = CreateSourceId(File.ReadAllBytes(path));
         return LoadFile(new FontKey(family, style, sourceId), path, faceIndex);
     }
 
@@ -134,7 +134,21 @@ public sealed class FontFace : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(FontFace));
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    }
+
+    private static string CreateSourceId(ReadOnlySpan<byte> data)
+    {
+        const string Hex = "0123456789abcdef";
+        var hash = SHA256.HashData(data);
+        var chars = new char[hash.Length * 2];
+        for (var i = 0; i < hash.Length; i++)
+        {
+            chars[i * 2] = Hex[hash[i] >> 4];
+            chars[i * 2 + 1] = Hex[hash[i] & 0x0f];
+        }
+
+        return new string(chars);
     }
 
     private static FontMetrics ReadHorizontalMetrics(byte[] data, int unitsPerEm)

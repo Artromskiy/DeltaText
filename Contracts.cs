@@ -62,7 +62,7 @@ public readonly record struct TextShapingRequest
         TextDirection direction = TextDirection.Auto,
         ReadOnlyMemory<TextFeature> features = default)
     {
-        if (text is null) throw new ArgumentNullException(nameof(text));
+        ArgumentNullException.ThrowIfNull(text);
         if (!(size > 0) || float.IsNaN(size) || float.IsInfinity(size)) throw new ArgumentOutOfRangeException(nameof(size));
         Text = text;
         Size = size;
@@ -141,8 +141,8 @@ public readonly record struct GlyphAtlasRequest
 {
     public GlyphAtlasRequest(FontKey font, ReadOnlyMemory<uint> glyphIds, int pixelSize, int padding, float distanceRange, GlyphAtlasMode mode)
     {
-        if (pixelSize <= 0) throw new ArgumentOutOfRangeException(nameof(pixelSize));
-        if (padding < 0) throw new ArgumentOutOfRangeException(nameof(padding));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pixelSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(padding);
         if (!(distanceRange > 0)) throw new ArgumentOutOfRangeException(nameof(distanceRange));
         Font = font;
         GlyphIds = glyphIds;
