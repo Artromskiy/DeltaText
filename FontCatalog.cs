@@ -1,15 +1,23 @@
 namespace Delta.Text;
 
+/// <summary>A discovered font face and its source path.</summary>
+/// <param name="Key">The stable font identity.</param>
+/// <param name="Path">The source file path.</param>
 public readonly record struct FontSource(FontKey Key, string Path);
 
+/// <summary>Discovers TrueType and OpenType files below configured roots.</summary>
 public sealed class FileFontCatalog
 {
     private readonly FontSource[] _sources;
 
     private FileFontCatalog(FontSource[] sources) => _sources = sources;
 
+    /// <summary>The discovered font sources sorted by path.</summary>
     public ReadOnlyMemory<FontSource> Sources => _sources;
 
+    /// <summary>Scans directories for font files.</summary>
+    /// <param name="roots">The directories to search recursively.</param>
+    /// <returns>A catalog containing all discovered font files.</returns>
     public static FileFontCatalog Scan(IEnumerable<string> roots)
     {
         ArgumentNullException.ThrowIfNull(roots);

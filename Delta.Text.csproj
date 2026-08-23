@@ -6,6 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Delta.Text</AssemblyName>
     <RootNamespace>Delta.Text</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

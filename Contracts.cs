@@ -2,8 +2,13 @@ using System.Globalization;
 
 namespace Delta.Text;
 
+/// <summary>Stable identity for a font face.</summary>
 public readonly record struct FontKey
 {
+    /// <summary>Creates a font identity.</summary>
+    /// <param name="family">The family name.</param>
+    /// <param name="style">The style name.</param>
+    /// <param name="sourceId">A stable identity for the source bytes.</param>
     public FontKey(string family, string style, string sourceId)
     {
         if (string.IsNullOrWhiteSpace(family))
@@ -26,13 +31,30 @@ public readonly record struct FontKey
         SourceId = sourceId;
     }
 
+    /// <summary>The font family.</summary>
     public string Family { get; }
+    /// <summary>The font style.</summary>
     public string Style { get; }
+    /// <summary>The stable source identity.</summary>
     public string SourceId { get; }
 }
 
+/// <summary>Vertical metrics for a font face in font units.</summary>
+/// <param name="UnitsPerEm">The font design grid size.</param>
+/// <param name="Ascender">The distance above the baseline.</param>
+/// <param name="Descender">The distance below the baseline.</param>
+/// <param name="LineGap">The recommended additional line spacing.</param>
 public readonly record struct FontMetrics(int UnitsPerEm, int Ascender, int Descender, int LineGap);
 
+/// <summary>Metrics for one glyph in font units.</summary>
+/// <param name="GlyphId">The glyph identifier.</param>
+/// <param name="AdvanceX">The horizontal advance.</param>
+/// <param name="AdvanceY">The vertical advance.</param>
+/// <param name="BearingX">The left side bearing.</param>
+/// <param name="BearingY">The top bearing.</param>
+/// <param name="Width">The glyph width.</param>
+/// <param name="Height">The glyph height.</param>
+/// <param name="UnitsPerEm">The font design grid size.</param>
 public readonly record struct GlyphMetrics(
     uint GlyphId,
     int AdvanceX,
@@ -43,17 +65,27 @@ public readonly record struct GlyphMetrics(
     int Height,
     int UnitsPerEm);
 
+/// <summary>Text flow direction passed to the shaping engine.</summary>
 public enum TextDirection
 {
+    /// <summary>Let the shaping engine infer the direction.</summary>
     Auto,
+    /// <summary>Left-to-right text.</summary>
     LeftToRight,
+    /// <summary>Right-to-left text.</summary>
     RightToLeft,
+    /// <summary>Top-to-bottom text.</summary>
     TopToBottom,
+    /// <summary>Bottom-to-top text.</summary>
     BottomToTop
 }
 
+/// <summary>An OpenType shaping feature toggle.</summary>
 public readonly record struct TextFeature
 {
+    /// <summary>Creates a shaping feature toggle.</summary>
+    /// <param name="tag">The four-character OpenType tag.</param>
+    /// <param name="enabled">Whether the feature is enabled.</param>
     public TextFeature(string tag, bool enabled = true)
     {
         if (tag is null || tag.Length != 4)
@@ -65,12 +97,21 @@ public readonly record struct TextFeature
         Enabled = enabled;
     }
 
+    /// <summary>The four-character OpenType tag.</summary>
     public string Tag { get; }
+    /// <summary>Whether the feature is enabled.</summary>
     public bool Enabled { get; }
 }
 
+/// <summary>Input settings for one shaping operation.</summary>
 public readonly record struct TextShapingRequest
 {
+    /// <summary>Creates shaping settings.</summary>
+    /// <param name="text">The text to shape.</param>
+    /// <param name="size">The requested em size in device units.</param>
+    /// <param name="culture">The language and script culture, or invariant culture.</param>
+    /// <param name="direction">The requested text direction.</param>
+    /// <param name="features">The OpenType feature toggles.</param>
     public TextShapingRequest(
         string text,
         float size,
@@ -91,13 +132,25 @@ public readonly record struct TextShapingRequest
         Features = features;
     }
 
+    /// <summary>The text to shape.</summary>
     public string Text { get; }
+    /// <summary>The requested em size.</summary>
     public float Size { get; }
+    /// <summary>The language and script culture.</summary>
     public CultureInfo Culture { get; }
+    /// <summary>The requested text direction.</summary>
     public TextDirection Direction { get; }
+    /// <summary>The feature toggles.</summary>
     public ReadOnlyMemory<TextFeature> Features { get; }
 }
 
+/// <summary>A glyph and its shaping offsets and advances.</summary>
+/// <param name="GlyphId">The glyph identifier.</param>
+/// <param name="Cluster">The source-text cluster index.</param>
+/// <param name="AdvanceX">The horizontal advance.</param>
+/// <param name="AdvanceY">The vertical advance.</param>
+/// <param name="OffsetX">The horizontal positioning offset.</param>
+/// <param name="OffsetY">The vertical positioning offset.</param>
 public readonly record struct ShapedGlyph(
     uint GlyphId,
     int Cluster,
@@ -106,6 +159,15 @@ public readonly record struct ShapedGlyph(
     float OffsetX,
     float OffsetY);
 
+/// <summary>A shaped glyph positioned relative to the run origin.</summary>
+/// <param name="GlyphId">The glyph identifier.</param>
+/// <param name="Cluster">The source-text cluster index.</param>
+/// <param name="X">The glyph pen position on the x axis.</param>
+/// <param name="Y">The glyph pen position on the y axis.</param>
+/// <param name="AdvanceX">The horizontal advance.</param>
+/// <param name="AdvanceY">The vertical advance.</param>
+/// <param name="OffsetX">The horizontal positioning offset.</param>
+/// <param name="OffsetY">The vertical positioning offset.</param>
 public readonly record struct PositionedGlyph(
     uint GlyphId,
     int Cluster,
@@ -116,12 +178,20 @@ public readonly record struct PositionedGlyph(
     float OffsetX,
     float OffsetY);
 
+/// <summary>Bounds of a shaped run in device units.</summary>
+/// <param name="Left">The left edge.</param>
+/// <param name="Bottom">The bottom edge.</param>
+/// <param name="Right">The right edge.</param>
+/// <param name="Top">The top edge.</param>
 public readonly record struct TextBounds(float Left, float Bottom, float Right, float Top)
 {
+    /// <summary>The width of the bounds.</summary>
     public float Width => Right - Left;
+    /// <summary>The height of the bounds.</summary>
     public float Height => Top - Bottom;
 }
 
+/// <summary>Immutable shaped glyph data and positioned glyph data.</summary>
 public sealed class ShapedGlyphRun
 {
     private readonly ShapedGlyph[] _glyphs;
@@ -147,18 +217,34 @@ public sealed class ShapedGlyphRun
         Bounds = bounds;
     }
 
+    /// <summary>The font used for shaping.</summary>
     public FontKey Font { get; }
+    /// <summary>The requested em size.</summary>
     public float Size { get; }
+    /// <summary>The source text length in UTF-16 code units.</summary>
     public int TextLength { get; }
+    /// <summary>The shaped glyph sequence.</summary>
     public ReadOnlyMemory<ShapedGlyph> Glyphs => _glyphs;
+    /// <summary>The positioned glyph sequence.</summary>
     public ReadOnlyMemory<PositionedGlyph> PositionedGlyphs => _positionedGlyphs;
+    /// <summary>The total horizontal advance.</summary>
     public float AdvanceX { get; }
+    /// <summary>The total vertical advance.</summary>
     public float AdvanceY { get; }
+    /// <summary>The run bounds.</summary>
     public TextBounds Bounds { get; }
 }
 
+/// <summary>Settings for generating a glyph atlas.</summary>
 public readonly record struct GlyphAtlasRequest
 {
+    /// <summary>Creates atlas generation settings.</summary>
+    /// <param name="font">The font identity.</param>
+    /// <param name="glyphIds">The glyph identifiers to include.</param>
+    /// <param name="pixelSize">The rasterization size.</param>
+    /// <param name="padding">The padding around each glyph.</param>
+    /// <param name="distanceRange">The signed-distance range in pixels.</param>
+    /// <param name="mode">The atlas pixel mode.</param>
     public GlyphAtlasRequest(FontKey font, ReadOnlyMemory<uint> glyphIds, int pixelSize, int padding, float distanceRange, GlyphAtlasMode mode)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pixelSize);
@@ -176,21 +262,45 @@ public readonly record struct GlyphAtlasRequest
         Mode = mode;
     }
 
+    /// <summary>The font identity.</summary>
     public FontKey Font { get; }
+    /// <summary>The requested glyph identifiers.</summary>
     public ReadOnlyMemory<uint> GlyphIds { get; }
+    /// <summary>The rasterization size in pixels.</summary>
     public int PixelSize { get; }
+    /// <summary>The padding in pixels.</summary>
     public int Padding { get; }
+    /// <summary>The signed-distance range in pixels.</summary>
     public float DistanceRange { get; }
+    /// <summary>The pixel encoding mode.</summary>
     public GlyphAtlasMode Mode { get; }
 }
 
+/// <summary>Pixel encoding used by a glyph atlas.</summary>
 public enum GlyphAtlasMode
 {
+    /// <summary>Single-channel grayscale coverage or distance pixels.</summary>
     Grayscale,
+    /// <summary>Three-channel multi-channel signed-distance pixels.</summary>
     Msdf,
+    /// <summary>Four-channel multi-channel signed-distance pixels.</summary>
     Mtsdf
 }
 
+/// <summary>Placement and pixels for one glyph in an atlas.</summary>
+/// <param name="GlyphId">The glyph identifier.</param>
+/// <param name="PageIndex">The containing page index.</param>
+/// <param name="U0">The left UV coordinate.</param>
+/// <param name="V0">The top UV coordinate.</param>
+/// <param name="U1">The right UV coordinate.</param>
+/// <param name="V1">The bottom UV coordinate.</param>
+/// <param name="Width">The glyph bitmap width.</param>
+/// <param name="Height">The glyph bitmap height.</param>
+/// <param name="Stride">The row stride in bytes.</param>
+/// <param name="BearingX">The horizontal bearing.</param>
+/// <param name="BearingY">The vertical bearing.</param>
+/// <param name="AdvanceX">The horizontal advance.</param>
+/// <param name="Pixels">The glyph pixels.</param>
 public readonly record struct GlyphAtlasGlyph(
     uint GlyphId,
     int PageIndex,
@@ -206,18 +316,32 @@ public readonly record struct GlyphAtlasGlyph(
     float AdvanceX,
     ReadOnlyMemory<byte> Pixels);
 
+/// <summary>A packed atlas page and its pixels.</summary>
+/// <param name="PageIndex">The page index.</param>
+/// <param name="Width">The page width.</param>
+/// <param name="Height">The page height.</param>
+/// <param name="Pixels">The page pixels.</param>
 public readonly record struct GlyphAtlasPage(
     int PageIndex,
     int Width,
     int Height,
     ReadOnlyMemory<byte> Pixels);
 
+/// <summary>The result of one atlas generation request.</summary>
+/// <param name="Request">The request that produced the result.</param>
+/// <param name="Pages">The packed pages.</param>
+/// <param name="Glyphs">The glyph placements.</param>
 public readonly record struct GlyphAtlasResult(
     GlyphAtlasRequest Request,
     ReadOnlyMemory<GlyphAtlasPage> Pages,
     ReadOnlyMemory<GlyphAtlasGlyph> Glyphs);
 
+/// <summary>Generates deterministic glyph atlas data.</summary>
 public interface IGlyphAtlasGenerator
 {
+    /// <summary>Generates or retrieves an atlas for a request.</summary>
+    /// <param name="face">The loaded font face.</param>
+    /// <param name="request">The atlas settings.</param>
+    /// <returns>The generated atlas result.</returns>
     GlyphAtlasResult Generate(FontFace face, in GlyphAtlasRequest request);
 }

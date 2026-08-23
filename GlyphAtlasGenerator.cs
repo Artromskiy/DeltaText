@@ -3,11 +3,16 @@ using SkiaSharp;
 
 namespace Delta.Text;
 
+/// <summary>Generates and caches grayscale and MSDF glyph atlases.</summary>
 public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
 {
     private readonly ConcurrentDictionary<GlyphAtlasKey, CachedGlyph> _glyphCache = new();
     private readonly ConcurrentDictionary<GlyphAtlasRequestKey, GlyphAtlasResult> _requestCache = new();
 
+    /// <summary>Generates or retrieves a deterministic atlas.</summary>
+    /// <param name="face">The loaded font face.</param>
+    /// <param name="request">The atlas generation settings.</param>
+    /// <returns>The generated atlas.</returns>
     public GlyphAtlasResult Generate(FontFace face, in GlyphAtlasRequest request)
     {
         ArgumentNullException.ThrowIfNull(face);

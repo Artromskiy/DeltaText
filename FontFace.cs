@@ -3,6 +3,7 @@ using SkiaSharp;
 
 namespace Delta.Text;
 
+/// <summary>An owned HarfBuzz font face backed by immutable font bytes.</summary>
 public sealed class FontFace : IDisposable
 {
     private readonly byte[] _fontData;
@@ -22,18 +23,31 @@ public sealed class FontFace : IDisposable
         Metrics = ReadHorizontalMetrics(data, unitsPerEm);
     }
 
+    /// <summary>The stable identity of this face.</summary>
     public FontKey Key { get; }
+    /// <summary>The font design grid size.</summary>
     public int UnitsPerEm { get; }
+    /// <summary>The horizontal font metrics.</summary>
     public FontMetrics Metrics { get; }
     internal ReadOnlyMemory<byte> FontData => _fontData;
     internal IntPtr NativeFont => _font;
 
+    /// <summary>Loads a face from a font file.</summary>
+    /// <param name="key">The stable face identity.</param>
+    /// <param name="path">The font file path.</param>
+    /// <param name="faceIndex">The face index in a collection.</param>
+    /// <returns>An owned font face.</returns>
     public static FontFace LoadFile(FontKey key, string path, uint faceIndex = 0)
     {
         ArgumentNullException.ThrowIfNull(path);
         return FromBytes(key, File.ReadAllBytes(path), faceIndex);
     }
 
+    /// <summary>Loads a face from font bytes.</summary>
+    /// <param name="key">The stable face identity.</param>
+    /// <param name="data">The font file bytes.</param>
+    /// <param name="faceIndex">The face index in a collection.</param>
+    /// <returns>An owned font face.</returns>
     public static FontFace FromBytes(FontKey key, ReadOnlyMemory<byte> data, uint faceIndex = 0)
     {
         if (data.IsEmpty)
@@ -54,18 +68,30 @@ public sealed class FontFace : IDisposable
         }
     }
 
+    /// <summary>Loads a face and derives its source identity from the file bytes.</summary>
+    /// <param name="family">The family name.</param>
+    /// <param name="style">The style name.</param>
+    /// <param name="path">The font file path.</param>
+    /// <param name="faceIndex">The face index in a collection.</param>
+    /// <returns>An owned font face.</returns>
     public static FontFace LoadFile(string family, string style, string path, uint faceIndex = 0)
     {
         var sourceId = CreateSourceId(File.ReadAllBytes(path));
         return LoadFile(new FontKey(family, style, sourceId), path, faceIndex);
     }
 
+    /// <summary>Looks up a glyph identifier for a Unicode code point.</summary>
+    /// <param name="codepoint">The Unicode scalar value.</param>
+    /// <returns>The glyph identifier, or zero when the face has no glyph.</returns>
     public uint GetGlyphId(uint codepoint)
     {
         ThrowIfDisposed();
         return NativeHarfBuzz.GetGlyph(_font, codepoint);
     }
 
+    /// <summary>Reads metrics for a glyph.</summary>
+    /// <param name="glyphId">The glyph identifier.</param>
+    /// <returns>The glyph metrics in font units.</returns>
     public GlyphMetrics GetGlyphMetrics(uint glyphId)
     {
         ThrowIfDisposed();
@@ -79,6 +105,9 @@ public sealed class FontFace : IDisposable
         return SKTypeface.FromData(data) ?? throw new InvalidOperationException("Skia could not create a typeface for the font data.");
     }
 
+    /// <summary>Shapes text with HarfBuzz and returns a positioned glyph run.</summary>
+    /// <param name="request">The shaping settings.</param>
+    /// <returns>The shaped glyph run.</returns>
     public ShapedGlyphRun Shape(TextShapingRequest request)
     {
         ThrowIfDisposed();
@@ -131,6 +160,7 @@ public sealed class FontFace : IDisposable
         return new ShapedGlyphRun(Key, request.Size, request.Text.Length, glyphs, positioned, penX, penY, new TextBounds(left, bottom, right, top));
     }
 
+    /// <summary>Releases native face resources.</summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
