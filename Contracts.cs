@@ -287,6 +287,101 @@ public enum GlyphAtlasMode
     Mtsdf
 }
 
+/// <summary>Limits retained shaping or glyph bitmap results.</summary>
+public readonly record struct TextCacheBudget
+{
+    /// <summary>Creates a cache budget.</summary>
+    public TextCacheBudget(int maxEntries, long maxBytes)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
+        MaxEntries = maxEntries;
+        MaxBytes = maxBytes;
+    }
+
+    /// <summary>Maximum number of retained results.</summary>
+    public int MaxEntries { get; }
+    /// <summary>Maximum estimated retained bytes.</summary>
+    public long MaxBytes { get; }
+    /// <summary>Default bounded budget for interactive text.</summary>
+    public static TextCacheBudget Default => new(256, 16 * 1024 * 1024);
+}
+
+/// <summary>One un-packed CPU glyph bitmap. DeltaRender owns packing and UVs.</summary>
+public sealed class GlyphBitmap
+{
+    internal GlyphBitmap(GlyphAtlasRequest request, uint glyphId, int width, int height, int stride,
+        float bearingX, float bearingY, float advanceX, ReadOnlyMemory<byte> pixels)
+    {
+        Request = request;
+        GlyphId = glyphId;
+        Width = width;
+        Height = height;
+        Stride = stride;
+        BearingX = bearingX;
+        BearingY = bearingY;
+        AdvanceX = advanceX;
+        Pixels = pixels;
+    }
+
+    /// <summary>The source atlas settings, without page ownership.</summary>
+    public GlyphAtlasRequest Request { get; }
+    /// <summary>The glyph identifier.</summary>
+    public uint GlyphId { get; }
+    /// <summary>Bitmap width in pixels.</summary>
+    public int Width { get; }
+    /// <summary>Bitmap height in pixels.</summary>
+    public int Height { get; }
+    /// <summary>Row stride in bytes.</summary>
+    public int Stride { get; }
+    /// <summary>Horizontal bearing in device units.</summary>
+    public float BearingX { get; }
+    /// <summary>Vertical bearing in device units.</summary>
+    public float BearingY { get; }
+    /// <summary>Horizontal advance in device units.</summary>
+    public float AdvanceX { get; }
+    /// <summary>Un-packed CPU pixels. The format is determined by Request.Mode.</summary>
+    public ReadOnlyMemory<byte> Pixels { get; }
+}
+
+/// <summary>Result of requesting one CPU glyph bitmap.</summary>
+public readonly record struct GlyphBitmapResult(GlyphBitmapStatus Status, GlyphBitmap? Bitmap, string? Message)
+{
+    /// <summary>Whether a bitmap was produced.</summary>
+    public bool Succeeded => Status == GlyphBitmapStatus.Succeeded && Bitmap is not null;
+}
+
+/// <summary>Outcome of a glyph bitmap request.</summary>
+public enum GlyphBitmapStatus
+{
+    /// <summary>A bitmap was produced.</summary>
+    Succeeded,
+    /// <summary>The requested mode is intentionally not implemented.</summary>
+    UnsupportedMode
+}
+
+/// <summary>Renderer-neutral positioned glyph handoff. It contains no pages or UVs.</summary>
+public readonly record struct PositionedGlyphBitmap(PositionedGlyph Glyph, GlyphBitmap Bitmap);
+
+/// <summary>Shaping plus CPU glyph data passed to a renderer-owned atlas stage.</summary>
+public sealed class GlyphRenderData
+{
+    private readonly PositionedGlyphBitmap[] _glyphs;
+
+    /// <summary>Creates a renderer-neutral handoff.</summary>
+    public GlyphRenderData(ShapedGlyphRun run, ReadOnlyMemory<PositionedGlyphBitmap> glyphs)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        _glyphs = glyphs.ToArray();
+        Run = run;
+    }
+
+    /// <summary>The shaped run.</summary>
+    public ShapedGlyphRun Run { get; }
+    /// <summary>Positioned glyphs and their CPU bitmaps.</summary>
+    public ReadOnlyMemory<PositionedGlyphBitmap> Glyphs => _glyphs;
+}
+
 /// <summary>Placement and pixels for one glyph in an atlas.</summary>
 /// <param name="GlyphId">The glyph identifier.</param>
 /// <param name="PageIndex">The containing page index.</param>
@@ -344,4 +439,11 @@ public interface IGlyphAtlasGenerator
     /// <param name="request">The atlas settings.</param>
     /// <returns>The generated atlas result.</returns>
     GlyphAtlasResult Generate(FontFace face, in GlyphAtlasRequest request);
+}
+
+/// <summary>Generates individual CPU glyph bitmaps; packing remains a renderer concern.</summary>
+public interface IGlyphBitmapGenerator
+{
+    /// <summary>Attempts to generate one bitmap without allocating an atlas page.</summary>
+    GlyphBitmapResult TryGenerateGlyph(FontFace face, in GlyphAtlasRequest request, uint glyphId);
 }

@@ -1,11 +1,16 @@
-using System.Collections.Concurrent;
-
 namespace Delta.Text;
 
 /// <summary>Caches shaped glyph runs by face and shaping request.</summary>
 public sealed class TextShaper
 {
-    private readonly ConcurrentDictionary<ShapeCacheKey, ShapedGlyphRun> _cache = new();
+    private readonly BoundedCache<ShapeCacheKey, ShapedGlyphRun> _cache;
+
+    /// <summary>Creates a shaper with a bounded deterministic result cache.</summary>
+    public TextShaper(TextCacheBudget? budget = null)
+    {
+        var selected = budget ?? TextCacheBudget.Default;
+        _cache = new BoundedCache<ShapeCacheKey, ShapedGlyphRun>(selected);
+    }
 
     /// <summary>Shapes a request, reusing an identical cached result.</summary>
     /// <param name="face">The loaded font face.</param>
@@ -15,11 +20,14 @@ public sealed class TextShaper
     {
         ArgumentNullException.ThrowIfNull(face);
         var key = new ShapeCacheKey(face.Key, request);
-        return _cache.GetOrAdd(key, static (cacheKey, state) => state.face.Shape(state.request), (face, request));
+        return _cache.GetOrAdd(key, () => face.Shape(request), static run => EstimateSize(run));
     }
 
     /// <summary>Removes all cached shaped runs.</summary>
     public void Clear() => _cache.Clear();
+
+    private static long EstimateSize(ShapedGlyphRun run)
+        => 256L + run.Glyphs.Length * 32L + run.PositionedGlyphs.Length * 32L;
 
     private readonly record struct ShapeCacheKey(
         FontKey Font,

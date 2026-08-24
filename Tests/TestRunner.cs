@@ -14,6 +14,7 @@ internal static class TestRunner
         ("combining mark cluster", CombiningMarkShaping),
         ("Arabic RTL ordering and clusters", ArabicShaping),
         ("positioned run and stable cache output", CacheAndPositionedRun),
+        ("bounded staged handoff and MTSDF result", StagedHandoffAndBudget),
         ("grayscale atlas generator and export smoke", AtlasSmoke),
         ("MSDF native atlas smoke", MsdfSmoke)
     ];
@@ -200,14 +201,41 @@ internal static class TestRunner
         var request = new GlyphAtlasRequest(face.Key, glyphs, 40, 6, 8, GlyphAtlasMode.Grayscale);
         var first = generator.Generate(face, request);
         var second = generator.Generate(face, request);
-        Check(first.Pages.Span[0].Pixels.Equals(second.Pages.Span[0].Pixels), "atlas request did not reuse cached page pixels");
-        Check(first.Glyphs.Span[0].Pixels.Equals(second.Glyphs.Span[0].Pixels), "atlas request did not reuse cached glyph pixels");
+        Check(first.Pages.Span[0].Pixels.Span.SequenceEqual(second.Pages.Span[0].Pixels.Span), "atlas regeneration changed page pixels");
+        Check(first.Glyphs.Span[0].Pixels.Span.SequenceEqual(second.Glyphs.Span[0].Pixels.Span), "atlas regeneration changed glyph pixels");
         Check(first.Pages.Length > 0, "atlas generator produced no pages");
         Check(first.Glyphs.Length == glyphs.Length, "atlas glyph count mismatch");
         Check(first.Glyphs.Span.ToArray().All(static glyph => glyph.PageIndex >= 0), "glyph page indices are invalid");
         Check(first.Glyphs.Span.ToArray().All(static glyph => glyph.U1 > glyph.U0 && glyph.V1 > glyph.V0), "glyph UVs are invalid");
         Check(first.Pages.Span[0].Pixels.Length > 0, "atlas page has no pixels");
         Check(first.Pages.Span[0].Pixels.Span.ToArray().Any(static b => b != 0), "atlas page is empty");
+    }
+
+    private static void StagedHandoffAndBudget()
+    {
+        using var face = LoadLatin();
+        var shaper = new TextShaper(new TextCacheBudget(1, 4096));
+        var run = shaper.Shape(face, new TextShapingRequest("A", 32, CultureInfo.InvariantCulture));
+        var generator = new GlyphAtlasGenerator(new TextCacheBudget(2, 4096));
+        var request = new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Msdf);
+        var bitmapResult = generator.TryGenerateGlyph(face, request, request.GlyphIds.Span[0]);
+        var bitmap = bitmapResult.Bitmap;
+        Check(bitmapResult.Succeeded && bitmap is not null, "staged bitmap generation failed");
+        if (bitmap is null)
+        {
+            throw new InvalidOperationException("staged bitmap generation returned no bitmap");
+        }
+        var handoff = new GlyphRenderData(
+            run,
+            new[] { new PositionedGlyphBitmap(run.PositionedGlyphs.Span[0], bitmap) });
+        Check(handoff.Glyphs.Length == 1, "renderer handoff lost the positioned glyph");
+        Check(handoff.Glyphs.Span[0].Bitmap.Request.Mode == GlyphAtlasMode.Msdf, "handoff changed pixel mode");
+
+        var unsupported = generator.TryGenerateGlyph(face,
+            new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Mtsdf),
+            face.GetGlyphId('A'));
+        Check(unsupported.Status == GlyphBitmapStatus.UnsupportedMode && !unsupported.Succeeded,
+            "MTSDF must be an explicit unsupported result");
     }
 
     private static void MsdfSmoke()

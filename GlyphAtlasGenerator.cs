@@ -1,13 +1,17 @@
-using System.Collections.Concurrent;
 using SkiaSharp;
 
 namespace Delta.Text;
 
 /// <summary>Generates and caches grayscale and MSDF glyph atlases.</summary>
-public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
+public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGenerator
 {
-    private readonly ConcurrentDictionary<GlyphAtlasKey, CachedGlyph> _glyphCache = new();
-    private readonly ConcurrentDictionary<GlyphAtlasRequestKey, GlyphAtlasResult> _requestCache = new();
+    private readonly BoundedCache<GlyphAtlasKey, CachedGlyph> _glyphCache;
+
+    /// <summary>Creates a generator with a bounded glyph bitmap cache.</summary>
+    public GlyphAtlasGenerator(TextCacheBudget? budget = null)
+    {
+        _glyphCache = new BoundedCache<GlyphAtlasKey, CachedGlyph>(budget ?? TextCacheBudget.Default);
+    }
 
     /// <summary>Generates or retrieves a deterministic atlas.</summary>
     /// <param name="face">The loaded font face.</param>
@@ -16,62 +20,64 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
     public GlyphAtlasResult Generate(FontFace face, in GlyphAtlasRequest request)
     {
         ArgumentNullException.ThrowIfNull(face);
-        var key = new GlyphAtlasRequestKey(face.Key, request);
-        return _requestCache.GetOrAdd(key, static (_, state) => state.self.GenerateCore(state.face, state.request), (self: this, face, request));
+        if (request.Mode == GlyphAtlasMode.Mtsdf)
+        {
+            throw new NotSupportedException("MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
+        }
+
+        return GenerateCore(face, request);
+    }
+
+    /// <inheritdoc />
+    public GlyphBitmapResult TryGenerateGlyph(FontFace face, in GlyphAtlasRequest request, uint glyphId)
+    {
+        ArgumentNullException.ThrowIfNull(face);
+        if (request.Mode == GlyphAtlasMode.Mtsdf)
+        {
+            return new GlyphBitmapResult(GlyphBitmapStatus.UnsupportedMode, null,
+                "MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
+        }
+
+        var bitmap = GetGlyph(face, request, glyphId);
+        return new GlyphBitmapResult(GlyphBitmapStatus.Succeeded, bitmap.ToBitmap(request), null);
     }
 
     private GlyphAtlasResult GenerateCore(FontFace face, GlyphAtlasRequest request)
     {
-        var typeface = face.CreateTypeface();
-        try
+        var glyphIds = request.GlyphIds.Span;
+        var ordered = glyphIds.ToArray();
+        Array.Sort(ordered);
+
+        var cachedGlyphs = new CachedGlyph[ordered.Length];
+        var totalArea = 0;
+        var maxEdge = 0;
+        for (var i = 0; i < ordered.Length; i++)
         {
-            using var font = new SKFont(typeface, request.PixelSize)
-            {
-                Edging = SKFontEdging.SubpixelAntialias,
-                Hinting = SKFontHinting.Slight,
-                LinearMetrics = true,
-                Subpixel = true
-            };
-
-            var glyphIds = request.GlyphIds.Span;
-            var ordered = glyphIds.ToArray();
-            Array.Sort(ordered);
-
-            var cachedGlyphs = new CachedGlyph[ordered.Length];
-            var totalArea = 0;
-            var maxEdge = 0;
-            for (var i = 0; i < ordered.Length; i++)
-            {
-                cachedGlyphs[i] = GetGlyph(face, font, request, ordered[i]);
-                totalArea += Math.Max(1, cachedGlyphs[i].Width + request.Padding * 2) * Math.Max(1, cachedGlyphs[i].Height + request.Padding * 2);
-                maxEdge = Math.Max(maxEdge, Math.Max(cachedGlyphs[i].Width, cachedGlyphs[i].Height));
-            }
-
-            var pageSize = NextPowerOfTwo(Math.Max(256, Math.Max(maxEdge + request.Padding * 2 + 4, (int)Math.Ceiling(Math.Sqrt(totalArea * 1.25)))));
-            while (true)
-            {
-                var pages = PackPages(cachedGlyphs, pageSize, request.Padding, request.Mode == GlyphAtlasMode.Msdf ? 3 : 1);
-                if (pages.Count > 0)
-                {
-                    return BuildResult(request, pages);
-                }
-
-                pageSize *= 2;
-            }
+            cachedGlyphs[i] = GetGlyph(face, request, ordered[i]);
+            totalArea += Math.Max(1, cachedGlyphs[i].Width + request.Padding * 2) * Math.Max(1, cachedGlyphs[i].Height + request.Padding * 2);
+            maxEdge = Math.Max(maxEdge, Math.Max(cachedGlyphs[i].Width, cachedGlyphs[i].Height));
         }
-        finally
+
+        var pageSize = NextPowerOfTwo(Math.Max(256, Math.Max(maxEdge + request.Padding * 2 + 4, (int)Math.Ceiling(Math.Sqrt(totalArea * 1.25)))));
+        while (true)
         {
-            typeface.Dispose();
+            var pages = PackPages(cachedGlyphs, pageSize, request.Padding, request.Mode == GlyphAtlasMode.Msdf ? 3 : 1);
+            if (pages.Count > 0)
+            {
+                return BuildResult(request, pages);
+            }
+
+            pageSize *= 2;
         }
     }
 
-    private CachedGlyph GetGlyph(FontFace face, SKFont font, GlyphAtlasRequest request, uint glyphId)
+    private CachedGlyph GetGlyph(FontFace face, GlyphAtlasRequest request, uint glyphId)
     {
         var key = new GlyphAtlasKey(face.Key, glyphId, request.PixelSize, request.Padding, request.DistanceRange, request.Mode);
-        return _glyphCache.GetOrAdd(key, static (cacheKey, state) => state.self.BuildGlyph(state.face, state.font, cacheKey), (self: this, face, font));
+        return _glyphCache.GetOrAdd(key, () => BuildGlyph(face, key), static glyph => glyph.Pixels.Length + 64L);
     }
 
-    private CachedGlyph BuildGlyph(FontFace face, SKFont font, GlyphAtlasKey key)
+    private CachedGlyph BuildGlyph(FontFace face, GlyphAtlasKey key)
     {
         if (key.Mode == GlyphAtlasMode.Msdf)
         {
@@ -83,6 +89,26 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
             throw new NotSupportedException("MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
         }
 
+        var typeface = face.CreateTypeface();
+        try
+        {
+            using var font = new SKFont(typeface, key.PixelSize)
+            {
+                Edging = SKFontEdging.SubpixelAntialias,
+                Hinting = SKFontHinting.Slight,
+                LinearMetrics = true,
+                Subpixel = true
+            };
+            return BuildGrayscaleGlyph(face, font, key);
+        }
+        finally
+        {
+            typeface.Dispose();
+        }
+    }
+
+    private static CachedGlyph BuildGrayscaleGlyph(FontFace face, SKFont font, GlyphAtlasKey key)
+    {
         using var path = font.GetGlyphPath(checked((ushort)key.GlyphId));
         if (path is null || path.IsEmpty)
         {
@@ -313,6 +339,9 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator
         public float BearingY { get; }
         public float AdvanceX { get; }
         public ReadOnlyMemory<byte> Pixels { get; }
+
+        public GlyphBitmap ToBitmap(GlyphAtlasRequest request)
+            => new(request, GlyphId, Width, Height, Stride, BearingX, BearingY, AdvanceX, Pixels);
 
         public static CachedGlyph Create(uint glyphId, GlyphAtlasMode mode, int pixelSize, int width, int height, int stride, float bearingX, float bearingY, float advanceX, ReadOnlyMemory<byte> pixels)
             => new(glyphId, mode, pixelSize, width, height, stride, bearingX, bearingY, advanceX, pixels);
