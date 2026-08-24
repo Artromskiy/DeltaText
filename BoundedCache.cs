@@ -1,6 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Delta.Text;
 
-internal sealed class BoundedCache<TKey, TValue> where TKey : notnull
+internal sealed class BoundedCache<TKey, TValue> where TKey : notnull where TValue : class
 {
     private readonly Dictionary<TKey, Entry> _entries = new();
     private readonly TextCacheBudget _budget;
@@ -30,6 +32,22 @@ internal sealed class BoundedCache<TKey, TValue> where TKey : notnull
 
             return value;
         }
+    }
+
+    public bool TryGet(TKey key, [NotNullWhen(true)] out TValue? value)
+    {
+        lock (_entries)
+        {
+            if (_entries.TryGetValue(key, out var entry))
+            {
+                entry.LastUsed = ++_clock;
+                value = entry.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     public void Clear()

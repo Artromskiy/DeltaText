@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace Delta.Text;
@@ -37,6 +38,11 @@ public readonly record struct FontKey
     public string Style { get; }
     /// <summary>The stable source identity.</summary>
     public string SourceId { get; }
+
+    /// <summary>Indicates whether all font identity fields are populated.</summary>
+    public bool IsValid => !string.IsNullOrWhiteSpace(Family) &&
+                           !string.IsNullOrWhiteSpace(Style) &&
+                           !string.IsNullOrWhiteSpace(SourceId);
 }
 
 /// <summary>Vertical metrics for a font face in font units.</summary>
@@ -177,6 +183,204 @@ public readonly record struct PositionedGlyph(
     float AdvanceY,
     float OffsetX,
     float OffsetY);
+
+/// <summary>Pixel representation used for glyph bitmap generation and cache requests.</summary>
+public enum GlyphBitmapMode
+{
+    /// <summary>Single-channel signed-distance field rendered in grayscale.</summary>
+    GrayscaleSdf,
+    /// <summary>Three-channel multi-channel signed-distance field.</summary>
+    Msdf
+}
+
+/// <summary>Glyph cache key used by glyph bitmap cache implementations.</summary>
+/// <param name="Font">The resolved font identity.</param>
+/// <param name="GlyphId">The glyph identifier.</param>
+/// <param name="PixelSize">The output pixel size.</param>
+/// <param name="Mode">The distance-field mode.</param>
+/// <param name="DistanceRange">The signed-distance range, in pixels.</param>
+/// <param name="Padding">The bitmap padding, in pixels.</param>
+public readonly record struct GlyphCacheKey(FontKey Font, uint GlyphId, int PixelSize, GlyphBitmapMode Mode, float DistanceRange, int Padding)
+{
+    /// <summary>Basic validity check for cache-key inputs.</summary>
+    public bool IsValid => !string.IsNullOrWhiteSpace(Font.Family) &&
+                           !string.IsNullOrWhiteSpace(Font.Style) &&
+                           !string.IsNullOrWhiteSpace(Font.SourceId) &&
+                           PixelSize > 0 &&
+                           float.IsFinite(DistanceRange) && DistanceRange > 0 &&
+                           Padding >= 0 &&
+                           Enum.IsDefined(typeof(GlyphBitmapMode), Mode);
+}
+
+/// <summary>Glyph bitmap request consumed by glyph cache builders.</summary>
+/// <param name="Font">The resolved font identity.</param>
+/// <param name="GlyphId">The glyph identifier.</param>
+/// <param name="PixelSize">The output glyph pixel size.</param>
+/// <param name="Mode">The requested pixel mode.</param>
+/// <param name="DistanceRange">The signed-distance range, in pixels.</param>
+/// <param name="Padding">The bitmap padding, in pixels.</param>
+public readonly record struct GlyphBitmapRequest(FontKey Font, uint GlyphId, int PixelSize, GlyphBitmapMode Mode, float DistanceRange, int Padding)
+{
+    /// <summary>Indicates whether the request contains supported finite values.</summary>
+    public bool IsValid => !string.IsNullOrWhiteSpace(Font.Family) &&
+                           !string.IsNullOrWhiteSpace(Font.Style) &&
+                           !string.IsNullOrWhiteSpace(Font.SourceId) &&
+                           PixelSize > 0 &&
+                           float.IsFinite(DistanceRange) && DistanceRange > 0 &&
+                           Padding >= 0 &&
+                           Enum.IsDefined(typeof(GlyphBitmapMode), Mode);
+}
+
+/// <summary>Single cached glyph bitmap and cached metrics.</summary>
+public sealed class CachedGlyph
+{
+    internal CachedGlyph(
+        FontKey font,
+        uint glyphId,
+        int pixelSize,
+        GlyphBitmapMode mode,
+        float distanceRange,
+        int padding,
+        int width,
+        int height,
+        int stride,
+        float bearingX,
+        float bearingY,
+        float advanceX,
+        ReadOnlyMemory<byte> pixels)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pixelSize);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(stride);
+        if (!float.IsFinite(bearingX) || !float.IsFinite(bearingY) || !float.IsFinite(advanceX))
+        {
+            throw new ArgumentException("Glyph metrics must be finite.", nameof(bearingX));
+        }
+
+        if (!font.IsValid)
+        {
+            throw new ArgumentException("Font must be valid.", nameof(font));
+        }
+
+        if (!Enum.IsDefined(typeof(GlyphBitmapMode), mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode));
+        }
+
+        if (!float.IsFinite(distanceRange) || distanceRange <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(distanceRange), "Distance range must be finite and greater than zero.");
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(padding);
+
+        var channels = mode == GlyphBitmapMode.Msdf ? 3 : 1;
+        if (stride < checked(width * channels) || pixels.Length != checked(stride * height))
+        {
+            throw new ArgumentException("Glyph pixel payload does not match its dimensions and channel count.", nameof(pixels));
+        }
+
+        Font = font;
+        GlyphId = glyphId;
+        PixelSize = pixelSize;
+        Mode = mode;
+        DistanceRange = distanceRange;
+        Padding = padding;
+        Width = width;
+        Height = height;
+        Stride = stride;
+        BearingX = bearingX;
+        BearingY = bearingY;
+        AdvanceX = advanceX;
+        Pixels = pixels.ToArray();
+    }
+
+    /// <summary>Font identity used to generate the bitmap.</summary>
+    public FontKey Font { get; }
+    /// <summary>Font glyph identifier.</summary>
+    public uint GlyphId { get; }
+    /// <summary>Rasterization size in pixels.</summary>
+    public int PixelSize { get; }
+    /// <summary>Bitmap encoding mode.</summary>
+    public GlyphBitmapMode Mode { get; }
+    /// <summary>Signed-distance range in pixels.</summary>
+    public float DistanceRange { get; }
+    /// <summary>Bitmap padding in pixels.</summary>
+    public int Padding { get; }
+    /// <summary>Bitmap width in pixels.</summary>
+    public int Width { get; }
+    /// <summary>Bitmap height in pixels.</summary>
+    public int Height { get; }
+    /// <summary>Bitmap row stride in bytes.</summary>
+    public int Stride { get; }
+    /// <summary>Horizontal glyph bearing.</summary>
+    public float BearingX { get; }
+    /// <summary>Vertical glyph bearing.</summary>
+    public float BearingY { get; }
+    /// <summary>Horizontal glyph advance.</summary>
+    public float AdvanceX { get; }
+    /// <summary>Immutable glyph pixel data.</summary>
+    public ReadOnlyMemory<byte> Pixels { get; }
+
+    /// <summary>Creates a public atlas bitmap view for a matching request.</summary>
+    public GlyphBitmap ToBitmap(in GlyphBitmapRequest request)
+    {
+        if (request.Font != Font || request.GlyphId != GlyphId || request.PixelSize != PixelSize || request.Mode != Mode || request.DistanceRange != DistanceRange || request.Padding != Padding)
+        {
+            throw new InvalidOperationException("The glyph bitmap request does not match this cached glyph.");
+        }
+
+        return ToBitmap(new GlyphAtlasRequest(request.Font, ReadOnlyMemory<uint>.Empty, request.PixelSize, request.Padding, request.DistanceRange, ToAtlasMode(request.Mode)));
+    }
+
+    /// <summary>Creates an atlas bitmap view for a matching atlas request.</summary>
+    public GlyphBitmap ToBitmap(in GlyphAtlasRequest request)
+    {
+        if (request.Font != Font || request.PixelSize != PixelSize || request.Mode != ToAtlasMode(Mode))
+        {
+            throw new InvalidOperationException("The glyph atlas request does not match this cached glyph.");
+        }
+
+        if (request.DistanceRange != DistanceRange || request.Padding != Padding)
+        {
+            throw new InvalidOperationException("The glyph atlas request does not match this cached glyph.");
+        }
+
+        return new GlyphBitmap(request, GlyphId, Width, Height, Stride, BearingX, BearingY, AdvanceX, Pixels);
+    }
+
+    /// <summary>Creates a validated cached glyph.</summary>
+    public static CachedGlyph Create(
+        FontKey font,
+        uint glyphId,
+        int pixelSize,
+        GlyphBitmapMode mode,
+        float distanceRange,
+        int padding,
+        int width,
+        int height,
+        int stride,
+        float bearingX,
+        float bearingY,
+        float advanceX,
+        ReadOnlyMemory<byte> pixels)
+        => new(font, glyphId, pixelSize, mode, distanceRange, padding, width, height, stride, bearingX, bearingY, advanceX, pixels);
+
+    /// <summary>Creates a one-pixel placeholder glyph with the supplied advance.</summary>
+    public static CachedGlyph Empty(FontKey font, uint glyphId, int pixelSize, GlyphBitmapMode mode, float distanceRange, int padding, float advance)
+    {
+        var channels = mode == GlyphBitmapMode.Msdf ? 3 : 1;
+        return Create(font, glyphId, pixelSize, mode, distanceRange, padding, 1, 1, channels, 0, 0, advance, new byte[channels]);
+    }
+
+    private static GlyphAtlasMode ToAtlasMode(GlyphBitmapMode mode) => mode switch
+    {
+        GlyphBitmapMode.GrayscaleSdf => GlyphAtlasMode.Grayscale,
+        GlyphBitmapMode.Msdf => GlyphAtlasMode.Msdf,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported glyph bitmap mode.")
+    };
+}
 
 /// <summary>Bounds of a shaped run in device units.</summary>
 /// <param name="Left">The left edge.</param>
@@ -490,4 +694,17 @@ public interface IGlyphBitmapGenerator
 {
     /// <summary>Attempts to generate one bitmap without allocating an atlas page.</summary>
     GlyphBitmapResult TryGenerateGlyph(FontFace face, in GlyphAtlasRequest request, uint glyphId);
+}
+
+/// <summary>Cache abstraction for single glyph bitmaps.</summary>
+public interface IGlyphCache
+{
+    /// <summary>Gets a cached glyph entry by key.</summary>
+    bool TryGet(in GlyphCacheKey key, [NotNullWhen(true)] out CachedGlyph? glyph);
+
+    /// <summary>Gets or creates a cached glyph for the provided request.</summary>
+    CachedGlyph GetOrCreate(FontFace face, in GlyphBitmapRequest request);
+
+    /// <summary>Clears all entries from the cache.</summary>
+    void Clear();
 }

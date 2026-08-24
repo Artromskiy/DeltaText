@@ -1,16 +1,17 @@
+using System.Diagnostics.CodeAnalysis;
 using SkiaSharp;
 
 namespace Delta.Text;
 
 /// <summary>Generates and caches grayscale and MSDF glyph atlases.</summary>
-public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGenerator
+public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGenerator, IGlyphCache
 {
-    private readonly BoundedCache<GlyphAtlasKey, CachedGlyph> _glyphCache;
+    private readonly BoundedCache<GlyphCacheKey, CachedGlyph> _glyphCache;
 
     /// <summary>Creates a generator with a bounded glyph bitmap cache.</summary>
     public GlyphAtlasGenerator(TextCacheBudget? budget = null)
     {
-        _glyphCache = new BoundedCache<GlyphAtlasKey, CachedGlyph>(budget ?? TextCacheBudget.Default);
+        _glyphCache = new BoundedCache<GlyphCacheKey, CachedGlyph>(budget ?? TextCacheBudget.Default);
     }
 
     /// <summary>Generates or retrieves a deterministic atlas.</summary>
@@ -38,8 +39,42 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
                 "MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
         }
 
-        var bitmap = GetGlyph(face, request, glyphId);
+        var mode = request.Mode switch
+        {
+            GlyphAtlasMode.Grayscale => GlyphBitmapMode.GrayscaleSdf,
+            GlyphAtlasMode.Msdf => GlyphBitmapMode.Msdf,
+            _ => throw new NotSupportedException("Unsupported glyph atlas mode.")
+        };
+        var bitmap = GetOrCreate(face, new GlyphBitmapRequest(
+            request.Font, glyphId, request.PixelSize, mode, request.DistanceRange, request.Padding));
         return new GlyphBitmapResult(GlyphBitmapStatus.Succeeded, bitmap.ToBitmap(request), null);
+    }
+
+    /// <summary>Gets a cached glyph for a single-glyph request.</summary>
+    public CachedGlyph GetOrCreate(FontFace face, in GlyphBitmapRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(face);
+        if (!request.IsValid)
+        {
+            throw new ArgumentException("The glyph bitmap request is invalid.", nameof(request));
+        }
+
+        if (request.Font != face.Key)
+        {
+            throw new ArgumentException("The glyph request font does not match the provided font face.", nameof(request));
+        }
+
+        var key = new GlyphCacheKey(request.Font, request.GlyphId, request.PixelSize, request.Mode, request.DistanceRange, request.Padding);
+        return _glyphCache.GetOrAdd(key, () => BuildGlyph(face, key), static glyph => glyph.Pixels.Length + 64L);
+    }
+
+    /// <summary>Gets a cached glyph by key.</summary>
+    public bool TryGet(in GlyphCacheKey key, [NotNullWhen(true)] out CachedGlyph? glyph) => _glyphCache.TryGet(key, out glyph);
+
+    /// <summary>Clears all cached glyphs.</summary>
+    public void Clear()
+    {
+        _glyphCache.Clear();
     }
 
     private GlyphAtlasResult GenerateCore(FontFace face, GlyphAtlasRequest request)
@@ -73,20 +108,20 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
 
     private CachedGlyph GetGlyph(FontFace face, GlyphAtlasRequest request, uint glyphId)
     {
-        var key = new GlyphAtlasKey(face.Key, glyphId, request.PixelSize, request.Padding, request.DistanceRange, request.Mode);
+        var key = new GlyphCacheKey(face.Key, glyphId, request.PixelSize, request.Mode switch
+        {
+            GlyphAtlasMode.Grayscale => GlyphBitmapMode.GrayscaleSdf,
+            GlyphAtlasMode.Msdf => GlyphBitmapMode.Msdf,
+            _ => throw new NotSupportedException("Unsupported glyph atlas mode.")
+        }, request.DistanceRange, request.Padding);
         return _glyphCache.GetOrAdd(key, () => BuildGlyph(face, key), static glyph => glyph.Pixels.Length + 64L);
     }
 
-    private CachedGlyph BuildGlyph(FontFace face, GlyphAtlasKey key)
+    private CachedGlyph BuildGlyph(FontFace face, in GlyphCacheKey key)
     {
-        if (key.Mode == GlyphAtlasMode.Msdf)
+        if (key.Mode == GlyphBitmapMode.Msdf)
         {
             return BuildMsdfGlyph(face, key);
-        }
-
-        if (key.Mode == GlyphAtlasMode.Mtsdf)
-        {
-            throw new NotSupportedException("MTSDF is not enabled yet; use GlyphAtlasMode.Msdf.");
         }
 
         var typeface = face.CreateTypeface();
@@ -107,13 +142,13 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
         }
     }
 
-    private static CachedGlyph BuildGrayscaleGlyph(FontFace face, SKFont font, GlyphAtlasKey key)
+    private static CachedGlyph BuildGrayscaleGlyph(FontFace face, SKFont font, in GlyphCacheKey key)
     {
         using var path = font.GetGlyphPath(checked((ushort)key.GlyphId));
         if (path is null || path.IsEmpty)
         {
             var advance = face.GetGlyphMetrics(key.GlyphId).AdvanceX * key.PixelSize / (float)face.UnitsPerEm;
-            return CachedGlyph.Empty(key.GlyphId, key.Mode, key.PixelSize, advance);
+            return CachedGlyph.Empty(key.Font, key.GlyphId, key.PixelSize, key.Mode, key.DistanceRange, key.Padding, advance);
         }
 
         var bounds = path.Bounds;
@@ -141,8 +176,8 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
 
         var pixels = key.Mode switch
         {
-            GlyphAtlasMode.Grayscale => BuildSignedDistanceField(baseBitmap, distanceRange),
-            GlyphAtlasMode.Msdf or GlyphAtlasMode.Mtsdf => throw new InvalidOperationException("Unreachable atlas mode."),
+            GlyphBitmapMode.GrayscaleSdf => BuildSignedDistanceField(baseBitmap, distanceRange),
+            GlyphBitmapMode.Msdf => throw new InvalidOperationException("Unreachable atlas mode."),
             _ => throw new NotSupportedException($"Unsupported atlas mode: {key.Mode}")
         };
 
@@ -150,9 +185,12 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
         var bearingX = metrics.BearingX * scale;
         var bearingY = metrics.BearingY * scale;
         return CachedGlyph.Create(
+            key.Font,
             key.GlyphId,
-            key.Mode,
             key.PixelSize,
+            key.Mode,
+            key.DistanceRange,
+            key.Padding,
             glyphWidth,
             glyphHeight,
             glyphWidth,
@@ -162,13 +200,13 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
             pixels);
     }
 
-    private static CachedGlyph BuildMsdfGlyph(FontFace face, GlyphAtlasKey key)
+    private static CachedGlyph BuildMsdfGlyph(FontFace face, in GlyphCacheKey key)
     {
         var contours = new GlyphContours();
         if (!NativeHarfBuzzOutline.TryRead(face.NativeFont, key.GlyphId, contours))
         {
             var advance = face.GetGlyphMetrics(key.GlyphId).AdvanceX * key.PixelSize / (float)face.UnitsPerEm;
-            return CachedGlyph.Empty(key.GlyphId, key.Mode, key.PixelSize, advance);
+            return CachedGlyph.Empty(key.Font, key.GlyphId, key.PixelSize, key.Mode, key.DistanceRange, key.Padding, advance);
         }
 
         if (!NativeMsdf.TryGenerate(contours, key.PixelSize, face.UnitsPerEm, key.Padding, key.DistanceRange, out var width, out var height, out var pixels))
@@ -178,7 +216,7 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
 
         var metrics = face.GetGlyphMetrics(key.GlyphId);
         var scale = key.PixelSize / (float)face.UnitsPerEm;
-        return CachedGlyph.Create(key.GlyphId, key.Mode, key.PixelSize, width, height, width * 3,
+        return CachedGlyph.Create(key.Font, key.GlyphId, key.PixelSize, key.Mode, key.DistanceRange, key.Padding, width, height, width * 3,
             metrics.BearingX * scale, metrics.BearingY * scale, metrics.AdvanceX * scale, pixels);
     }
 
@@ -308,48 +346,6 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
                 builder.Append(glyphIds[i]);
             }
             return builder.ToString();
-        }
-    }
-
-    private readonly record struct GlyphAtlasKey(FontKey Font, uint GlyphId, int PixelSize, int Padding, float DistanceRange, GlyphAtlasMode Mode);
-
-    private sealed class CachedGlyph
-    {
-        private CachedGlyph(uint glyphId, GlyphAtlasMode mode, int pixelSize, int width, int height, int stride, float bearingX, float bearingY, float advanceX, ReadOnlyMemory<byte> pixels)
-        {
-            GlyphId = glyphId;
-            Mode = mode;
-            PixelSize = pixelSize;
-            Width = width;
-            Height = height;
-            Stride = stride;
-            BearingX = bearingX;
-            BearingY = bearingY;
-            AdvanceX = advanceX;
-            Pixels = pixels;
-        }
-
-        public uint GlyphId { get; }
-        public GlyphAtlasMode Mode { get; }
-        public int PixelSize { get; }
-        public int Width { get; }
-        public int Height { get; }
-        public int Stride { get; }
-        public float BearingX { get; }
-        public float BearingY { get; }
-        public float AdvanceX { get; }
-        public ReadOnlyMemory<byte> Pixels { get; }
-
-        public GlyphBitmap ToBitmap(GlyphAtlasRequest request)
-            => new(request, GlyphId, Width, Height, Stride, BearingX, BearingY, AdvanceX, Pixels);
-
-        public static CachedGlyph Create(uint glyphId, GlyphAtlasMode mode, int pixelSize, int width, int height, int stride, float bearingX, float bearingY, float advanceX, ReadOnlyMemory<byte> pixels)
-            => new(glyphId, mode, pixelSize, width, height, stride, bearingX, bearingY, advanceX, pixels);
-
-        public static CachedGlyph Empty(uint glyphId, GlyphAtlasMode mode, int pixelSize, float advance)
-        {
-            var channels = mode == GlyphAtlasMode.Msdf ? 3 : 1;
-            return Create(glyphId, mode, pixelSize, 1, 1, channels, 0, 0, advance, new byte[channels]);
         }
     }
 
