@@ -223,7 +223,7 @@ internal static class TestRunner
         var shaper = new TextShaper(new TextCacheBudget(1, 4096));
         var run = shaper.Shape(face, new TextShapingRequest("A", 32, CultureInfo.InvariantCulture));
         var generator = new GlyphAtlasGenerator(new TextCacheBudget(2, 4096));
-        var request = new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Msdf);
+        var request = new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Grayscale);
         var bitmapResult = generator.TryGenerateGlyph(face, request, request.GlyphIds.Span[0]);
         var bitmap = bitmapResult.Bitmap;
         Check(bitmapResult.Succeeded && bitmap is not null, "staged bitmap generation failed");
@@ -235,7 +235,7 @@ internal static class TestRunner
             run,
             new[] { new PositionedGlyphBitmap(run.PositionedGlyphs.Span[0], bitmap) });
         Check(handoff.Glyphs.Length == 1, "renderer handoff lost the positioned glyph");
-        Check(handoff.Glyphs.Span[0].Bitmap.Request.Mode == GlyphAtlasMode.Msdf, "handoff changed pixel mode");
+        Check(handoff.Glyphs.Span[0].Bitmap.Request.Mode == GlyphAtlasMode.Grayscale, "handoff changed pixel mode");
 
         var unsupported = generator.TryGenerateGlyph(face,
             new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Mtsdf),
