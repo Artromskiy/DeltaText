@@ -27,6 +27,13 @@ The workflow sets `DELTATEXT_REQUIRE_NATIVE_SMOKE=1`; missing or unloadable
 native output fails the job. A normal managed test run leaves that variable
 unset, so Gray8 remains usable without a native MSDF binary.
 
+HarfBuzz package assets remain under the standard output layout
+`runtimes/<rid>/native/<library>`. `NativeLibraryResolver` checks files beside
+the managed assembly first, then the current runtime identifier, current
+platform/architecture and the neutral platform RID (`osx`, `linux` or `win`).
+Preserve the `runtimes` directory when copying or publishing Delta.Text; no
+consumer-side native-library copy or disk-wide search is required.
+
 | Target | Native output | Required runtime dependency |
 |---|---|---|
 | Linux x64 | `libDeltaTextMsdf.so` | system C++ runtime plus bundled msdfgen core and packaged HarfBuzz assets |
