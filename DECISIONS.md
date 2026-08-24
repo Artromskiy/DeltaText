@@ -1,5 +1,23 @@
 # Delta.Text decisions
 
+## Public producer boundary
+
+The authoritative v1 API is `Delta.Text.Contract.ITextService`. DeltaText produces
+immutable shaped runs and independent, tightly packed glyph images. It does
+not produce an atlas. Exact font instances are opaque generation-safe handles;
+their identity includes source bytes, collection face index and variable-font
+coordinates.
+
+The contract intentionally preserves UTF-16 source ranges, clusters, resolved
+font fallback, bidirectional level, horizontal and vertical advances, offsets
+and HarfBuzz glyph safety flags. OpenType feature values are unsigned integers
+with optional source ranges rather than Boolean toggles.
+
+Atlas pages, UV rectangles, pipelines, batches, cache policy, eviction and GPU
+upload are consumer concerns. Bitmap rows returned by DeltaText are tightly
+packed, so renderer-specific row pitch is not part of the public API. See
+[PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) for the normative contract.
+
 ## Shaping and outlines
 
 HarfBuzz is the first OpenType backend. A small owned P/Invoke surface performs

@@ -11,8 +11,10 @@ https://github.com/harfbuzz/harfbuzz.
 ## SkiaSharp
 
 Delta.Text uses `SkiaSharp` version `2.88.8` and the matching platform native
-assets to provide the CPU glyph outline and atlas raster path. SkiaSharp is
-distributed under the MIT license and includes its own third-party notices.
+assets for the current implementation's CPU glyph raster path. The legacy
+atlas path is a migration surface, not the public `Delta.Text.Contract` API.
+SkiaSharp is distributed under the MIT license and includes its own
+third-party notices.
 Upstream sources are at https://github.com/mono/SkiaSharp.
 
 ## Noto test fonts

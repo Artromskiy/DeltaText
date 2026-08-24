@@ -3,7 +3,9 @@
 Scope: renderer-neutral font identity, HarfBuzz shaping/outlines, positioned
 glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or shaders.
 
-- [README.md](README.md) — stable public text/atlas contract.
+- [README.md](README.md) — short project overview and navigation.
+- [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative v1 data model, ownership,
+  JSON shape and standards boundary.
 - [TODO.md](TODO.md) — selected text work.
 - [IDEAS.md](IDEAS.md) — deferred backend/cache options.
 - [WORKFLOW.md](WORKFLOW.md) — managed/native build, tests and fixture export.

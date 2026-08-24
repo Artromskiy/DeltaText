@@ -1,5 +1,10 @@
 # DeltaText workflow
 
+The public API and ownership rules are defined only by
+[`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md). The commands below exercise the
+current implementation and migration surface; passing them does not change
+the contract.
+
 Managed checks:
 
 ```bash
@@ -44,12 +49,15 @@ No FreeType, Homebrew, vcpkg or other system font library is required by the
 bridge. The CI matrix is the platform evidence; a local macOS run does not
 claim Linux or Windows compatibility.
 
-Export the renderer fixture with:
+The current test project can export a legacy atlas fixture with:
 
 ```bash
 dotnet run --project Tests/Delta.Text.Tests.csproj -c Release -- \
   --export-atlas-fixture <output-directory>
 ```
+
+This export is retained for migration/testing only. Atlas pages, UVs and row
+pitch are not DeltaText public outputs; consumers own those concerns.
 
 Verify ownership/disposal on both success and failure paths. Do not infer
 cross-platform native success from one macOS run.
