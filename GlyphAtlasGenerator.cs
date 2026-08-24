@@ -119,7 +119,7 @@ public sealed class GlyphAtlasGenerator : IGlyphAtlasGenerator, IGlyphBitmapGene
         var bounds = path.Bounds;
         var padding = key.Padding;
         var distanceRange = key.DistanceRange;
-        var scale = 1f;
+        var scale = key.PixelSize / (float)face.UnitsPerEm;
         var glyphWidth = Math.Max(1, (int)Math.Ceiling(bounds.Width)) + padding * 2 + 2;
         var glyphHeight = Math.Max(1, (int)Math.Ceiling(bounds.Height)) + padding * 2 + 2;
         using var baseBitmap = new SKBitmap(glyphWidth, glyphHeight, SKColorType.Gray8, SKAlphaType.Opaque);

@@ -20,6 +20,7 @@ internal static class TestRunner
         ("positioned run and stable cache output", CacheAndPositionedRun),
         ("bounded staged handoff and MTSDF result", StagedHandoffAndBudget),
         ("public glyph bitmap factory contract", GlyphBitmapFactory),
+        ("grayscale metrics scale with pixel size", GrayscaleMetricScaling),
         ("grayscale atlas generator and export smoke", AtlasSmoke),
         ("MSDF native atlas smoke", MsdfSmoke)
     ];
@@ -263,6 +264,25 @@ internal static class TestRunner
         AssertThrows<ArgumentOutOfRangeException>(() => GlyphBitmap.Create(grayRequest, 1, 2, 2, 1, 0, 0, 0, new byte[4]), "short stride accepted");
         AssertThrows<ArgumentException>(() => GlyphBitmap.Create(grayRequest, 1, 2, 2, 2, 0, 0, 0, new byte[3]), "short pixel memory accepted");
         AssertThrows<ArgumentException>(() => GlyphBitmap.Create(grayRequest, 1, 1, 1, 1, float.NaN, 0, 0, new byte[1]), "nonfinite metrics accepted");
+    }
+
+    private static void GrayscaleMetricScaling()
+    {
+        using var face = LoadLatin();
+        var glyphId = face.GetGlyphId('A');
+        var generator = new GlyphAtlasGenerator();
+        var small = generator.Generate(face, new GlyphAtlasRequest(face.Key, new[] { glyphId }, 32, 4, 8, GlyphAtlasMode.Grayscale)).Glyphs.Span[0];
+        var large = generator.Generate(face, new GlyphAtlasRequest(face.Key, new[] { glyphId }, 64, 8, 16, GlyphAtlasMode.Grayscale)).Glyphs.Span[0];
+        var metrics = face.GetGlyphMetrics(glyphId);
+        var expectedSmallScale = 32f / face.UnitsPerEm;
+        var expectedLargeScale = 64f / face.UnitsPerEm;
+        Check(MathF.Abs(small.BearingX - metrics.BearingX * expectedSmallScale) < 0.001f, "small grayscale bearing X is not scaled");
+        Check(MathF.Abs(large.BearingX - metrics.BearingX * expectedLargeScale) < 0.001f, "large grayscale bearing X is not scaled");
+        Check(MathF.Abs(small.BearingY - metrics.BearingY * expectedSmallScale) < 0.001f, "small grayscale bearing Y is not scaled");
+        Check(MathF.Abs(large.BearingY - metrics.BearingY * expectedLargeScale) < 0.001f, "large grayscale bearing Y is not scaled");
+        Check(MathF.Abs(small.AdvanceX - metrics.AdvanceX * expectedSmallScale) < 0.001f, "small grayscale advance is not scaled");
+        Check(MathF.Abs(large.AdvanceX - metrics.AdvanceX * expectedLargeScale) < 0.001f, "large grayscale advance is not scaled");
+        Check(MathF.Abs(large.AdvanceX / small.AdvanceX - 2f) < 0.001f, "grayscale metrics are not proportional across sizes");
     }
 
     private static void MsdfSmoke()
