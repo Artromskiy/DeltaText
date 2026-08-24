@@ -13,6 +13,7 @@ internal static class TestRunner
     private static readonly (string Name, Action Body)[] Tests =
     [
         ("font metrics and glyph lookup", FontMetricsAndLookup),
+        ("native resolver default ordering", NativeResolverDefaultOrdering),
         ("packaged HarfBuzz resolver", PackagedHarfBuzzResolver),
         ("Latin ligature and kerning shaping", LatinShaping),
         ("Cyrillic clusters", CyrillicShaping),
@@ -153,6 +154,36 @@ internal static class TestRunner
         Check(packagedIndex > 0, "packaged runtime asset must be a fallback after local paths");
         using var face = LoadLatin();
         Check(face.UnitsPerEm > 0, $"packaged HarfBuzz failed to load from {packaged}");
+    }
+
+    private static void NativeResolverDefaultOrdering()
+    {
+        var calls = new List<string>();
+        var threw = false;
+        try
+        {
+            _ = NativeLibraryResolver.ResolveCore(
+                "missing-native-library",
+                Path.Combine(Path.GetTempPath(), "deltatext-missing"),
+                name =>
+                {
+                    calls.Add($"default:{name}");
+                    return IntPtr.Zero;
+                },
+                candidate =>
+                {
+                    calls.Add($"custom:{candidate}");
+                    return IntPtr.Zero;
+                });
+        }
+        catch (DllNotFoundException)
+        {
+            threw = true;
+        }
+
+        Check(threw, "missing native library did not produce a diagnostic");
+        Check(calls.Count > 1 && calls[0] == "default:missing-native-library", "default loader was not attempted first");
+        Check(calls.Skip(1).All(static call => call.StartsWith("custom:", StringComparison.Ordinal)), "custom candidates were not attempted after default loader");
     }
 
     private static void LatinShaping()

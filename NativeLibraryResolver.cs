@@ -42,10 +42,34 @@ internal static class NativeLibraryResolver
 
         var assemblyDirectory = Path.GetDirectoryName(assembly.Location);
         var baseDirectory = string.IsNullOrEmpty(assemblyDirectory) ? AppContext.BaseDirectory : assemblyDirectory;
-        var candidates = CandidatePaths(baseDirectory, libraryName);
+        return ResolveCore(
+            libraryName,
+            baseDirectory,
+            static name => NativeLibrary.TryLoad(name, out var handle) ? handle : IntPtr.Zero,
+            static candidate => NativeLibrary.TryLoad(candidate, out var handle) ? handle : IntPtr.Zero);
+    }
+
+    internal static IntPtr ResolveCore(
+        string libraryName,
+        string directory,
+        Func<string, IntPtr> defaultLoader,
+        Func<string, IntPtr> candidateLoader)
+    {
+        ArgumentNullException.ThrowIfNull(libraryName);
+        ArgumentNullException.ThrowIfNull(directory);
+        ArgumentNullException.ThrowIfNull(defaultLoader);
+        ArgumentNullException.ThrowIfNull(candidateLoader);
+        var defaultHandle = defaultLoader(libraryName);
+        if (defaultHandle != IntPtr.Zero)
+        {
+            return defaultHandle;
+        }
+
+        var candidates = CandidatePaths(directory, libraryName);
         foreach (var candidate in candidates)
         {
-            if (NativeLibrary.TryLoad(candidate, out var handle))
+            var handle = candidateLoader(candidate);
+            if (handle != IntPtr.Zero)
             {
                 return handle;
             }
