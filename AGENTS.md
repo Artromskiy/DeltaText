@@ -10,6 +10,8 @@ glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or shaders.
 - [DECISIONS.md](DECISIONS.md) — backend and ownership decisions.
 - [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — required legal metadata.
 - [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) — shared editor acceptance.
+- [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md) — text/render ownership
+  and migration order.
 
 Do not edit vendored `third_party/msdfgen` except for an explicitly reviewed
 vendor update. FreeType is not an engine dependency.

@@ -6,8 +6,11 @@ generation. It has no XAML, Vulkan, SDL, DeltaRender or shader dependency.
 
 The backend uses a small owned P/Invoke surface over HarfBuzz for shaping and
 glyph outlines. Consumers pass positioned glyphs to the renderer, never the
-original string. `GlyphAtlasRequest` and `GlyphAtlasResult` form the CPU atlas
-boundary and carry pixels, UVs, bounds, bearings, advances and page metadata.
+original string. `GlyphAtlasRequest` and `GlyphAtlasResult` are the current
+CPU packing contract and carry pixels, UVs, bounds, bearings, advances and page
+metadata. They are a migration boundary: the stable split keeps glyph bitmap
+generation in DeltaText and atlas packing, UV assignment, upload and GPU page
+lifetime in DeltaRender.
 
 ```csharp
 using System.Globalization;
@@ -27,6 +30,11 @@ managed assembly for the target platform. Each page uses three bytes per
 pixel and each glyph's `Stride` is its width multiplied by three. HarfBuzz
 supplies the contours and FreeType is not an engine dependency. MTSDF remains
 unsupported.
+
+HarfBuzz native assets are required for shaping. SkiaSharp is an internal
+implementation detail of the grayscale fallback; MSDF requires the separate
+DeltaTextMsdf native bridge. None of these dependencies appears in XAML,
+renderer or Vulkan-facing public APIs.
 
 See [DECISIONS.md](DECISIONS.md) for backend choices,
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for licenses,
