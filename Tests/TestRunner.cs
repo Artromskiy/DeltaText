@@ -6,6 +6,10 @@ namespace Delta.Text.Tests;
 
 internal static class TestRunner
 {
+    private static readonly uint[] MissingGlyph = [0];
+    private static readonly uint[] MsdfGlyph = [3];
+    private static readonly uint[] MtsdfGlyph = [4];
+
     private static readonly (string Name, Action Body)[] Tests =
     [
         ("font metrics and glyph lookup", FontMetricsAndLookup),
@@ -15,6 +19,7 @@ internal static class TestRunner
         ("Arabic RTL ordering and clusters", ArabicShaping),
         ("positioned run and stable cache output", CacheAndPositionedRun),
         ("bounded staged handoff and MTSDF result", StagedHandoffAndBudget),
+        ("public glyph bitmap factory contract", GlyphBitmapFactory),
         ("grayscale atlas generator and export smoke", AtlasSmoke),
         ("MSDF native atlas smoke", MsdfSmoke)
     ];
@@ -238,6 +243,28 @@ internal static class TestRunner
             "MTSDF must be an explicit unsupported result");
     }
 
+    private static void GlyphBitmapFactory()
+    {
+        var font = new FontKey("fixture", "regular", "fixture:bitmap");
+        var grayRequest = new GlyphAtlasRequest(font, MissingGlyph, 16, 1, 4, GlyphAtlasMode.Grayscale);
+        var grayPixels = new byte[] { 7, 8, 9, 10 };
+        var gray = GlyphBitmap.Create(grayRequest, 0, 2, 2, 2, 0, 1, 2, grayPixels);
+        grayPixels[0] = 99;
+        Check(gray.GlyphId == 0 && gray.Pixels.Span[0] == 7, "bitmap factory did not own its pixel copy");
+
+        var msdfRequest = new GlyphAtlasRequest(font, MsdfGlyph, 16, 1, 4, GlyphAtlasMode.Msdf);
+        var msdf = GlyphBitmap.Create(msdfRequest, 3, 1, 1, 3, 0, 1, 1, new byte[] { 1, 2, 3 });
+        Check(msdf.Stride == 3 && msdf.Pixels.Length == 3, "MSDF bitmap contract is invalid");
+
+        var mtsdfRequest = new GlyphAtlasRequest(font, MtsdfGlyph, 16, 1, 4, GlyphAtlasMode.Mtsdf);
+        var mtsdf = GlyphBitmap.Create(mtsdfRequest, 4, 1, 1, 4, 0, 1, 1, new byte[] { 1, 2, 3, 4 });
+        Check(mtsdf.Request.Mode == GlyphAtlasMode.Mtsdf, "MTSDF data factory rejected a representable mode");
+
+        AssertThrows<ArgumentOutOfRangeException>(() => GlyphBitmap.Create(grayRequest, 1, 2, 2, 1, 0, 0, 0, new byte[4]), "short stride accepted");
+        AssertThrows<ArgumentException>(() => GlyphBitmap.Create(grayRequest, 1, 2, 2, 2, 0, 0, 0, new byte[3]), "short pixel memory accepted");
+        AssertThrows<ArgumentException>(() => GlyphBitmap.Create(grayRequest, 1, 1, 1, 1, float.NaN, 0, 0, new byte[1]), "nonfinite metrics accepted");
+    }
+
     private static void MsdfSmoke()
     {
         using var face = LoadLatin();
@@ -298,5 +325,19 @@ internal static class TestRunner
         {
             throw new InvalidOperationException(message);
         }
+    }
+
+    private static void AssertThrows<TException>(Action action, string message) where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(message);
     }
 }

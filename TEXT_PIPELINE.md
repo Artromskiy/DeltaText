@@ -9,7 +9,10 @@ Delta.Text exposes three CPU-side stages:
    Grayscale and MSDF are supported; MTSDF returns `UnsupportedMode` explicitly.
    The bitmap is an unpacked CPU result with metrics and pixels, not a GPU page.
    Its immutable contract is `GlyphId`, `Width`, `Height`, byte `Stride`,
-   `BearingX`, `BearingY`, `AdvanceX`, `Request.Mode` and `Pixels`. `Pixels` has
+   `BearingX`, `BearingY`, `AdvanceX`, `Request.Mode` and `Pixels`. External
+   producers use `GlyphBitmap.Create(GlyphAtlasRequest, uint, int, int, int,
+   float, float, float, ReadOnlyMemory<byte>)`; the factory validates format
+   stride/length and finite metrics, and copies the source memory. `Pixels` has
    `Height * Stride` bytes and remains valid while the `GlyphBitmap` is alive;
    grayscale uses one byte per pixel and MSDF uses three bytes per pixel. No
    HarfBuzz, font-face or native handle crosses this boundary.

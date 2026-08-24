@@ -324,6 +324,50 @@ public sealed class GlyphBitmap
         Pixels = pixels;
     }
 
+    /// <summary>Creates an immutable, validated CPU glyph bitmap.</summary>
+    /// <param name="request">The bitmap format and generation settings.</param>
+    /// <param name="glyphId">The font glyph identifier; zero is a valid missing-glyph identifier.</param>
+    /// <param name="width">The bitmap width in pixels.</param>
+    /// <param name="height">The bitmap height in pixels.</param>
+    /// <param name="stride">The row stride in bytes.</param>
+    /// <param name="bearingX">The horizontal bearing in device units.</param>
+    /// <param name="bearingY">The vertical bearing in device units.</param>
+    /// <param name="advanceX">The horizontal advance in device units.</param>
+    /// <param name="pixels">Exactly <c>height * stride</c> bytes in row-major order.</param>
+    /// <returns>An immutable bitmap whose pixels are owned by the returned object.</returns>
+    public static GlyphBitmap Create(GlyphAtlasRequest request, uint glyphId, int width, int height, int stride,
+        float bearingX, float bearingY, float advanceX, ReadOnlyMemory<byte> pixels)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(stride);
+        if (!float.IsFinite(bearingX) || !float.IsFinite(bearingY) || !float.IsFinite(advanceX))
+        {
+            throw new ArgumentException("Glyph metrics must be finite.", nameof(bearingX));
+        }
+
+        var channels = request.Mode switch
+        {
+            GlyphAtlasMode.Grayscale => 1,
+            GlyphAtlasMode.Msdf => 3,
+            GlyphAtlasMode.Mtsdf => 4,
+            _ => throw new ArgumentOutOfRangeException(nameof(request))
+        };
+        var minimumStride = checked(width * channels);
+        if (stride < minimumStride)
+        {
+            throw new ArgumentOutOfRangeException(nameof(stride), $"Stride must be at least {minimumStride} bytes.");
+        }
+
+        var expectedLength = checked(height * stride);
+        if (pixels.Length != expectedLength)
+        {
+            throw new ArgumentException($"Pixel memory must contain exactly {expectedLength} bytes.", nameof(pixels));
+        }
+
+        return new GlyphBitmap(request, glyphId, width, height, stride, bearingX, bearingY, advanceX, pixels.ToArray());
+    }
+
     /// <summary>The source atlas settings, without page ownership.</summary>
     public GlyphAtlasRequest Request { get; }
     /// <summary>The glyph identifier.</summary>
