@@ -13,6 +13,7 @@ internal static class TestRunner
     private static readonly (string Name, Action Body)[] Tests =
     [
         ("font metrics and glyph lookup", FontMetricsAndLookup),
+        ("packaged HarfBuzz resolver", PackagedHarfBuzzResolver),
         ("Latin ligature and kerning shaping", LatinShaping),
         ("Cyrillic clusters", CyrillicShaping),
         ("combining mark cluster", CombiningMarkShaping),
@@ -138,6 +139,20 @@ internal static class TestRunner
         Check(face.GetGlyphId('A') != 0, "Latin glyph lookup failed");
         var metrics = face.GetGlyphMetrics(face.GetGlyphId('A'));
         Check(metrics.AdvanceX > 0 && metrics.Width > 0, "glyph metrics are empty");
+    }
+
+    private static void PackagedHarfBuzzResolver()
+    {
+        var candidates = NativeLibraryResolver.CandidatePaths(AppContext.BaseDirectory, "libHarfBuzzSharp");
+        Check(candidates.Count == candidates.Distinct(StringComparer.Ordinal).Count(), "native candidates are not unique");
+        var packaged = candidates.FirstOrDefault(static path =>
+            path.Contains($"{Path.DirectorySeparatorChar}runtimes{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            && File.Exists(path));
+        Check(packaged is not null, "packaged HarfBuzz runtime asset was not found in candidate paths");
+        var packagedIndex = candidates.ToList().IndexOf(packaged ?? string.Empty);
+        Check(packagedIndex > 0, "packaged runtime asset must be a fallback after local paths");
+        using var face = LoadLatin();
+        Check(face.UnitsPerEm > 0, $"packaged HarfBuzz failed to load from {packaged}");
     }
 
     private static void LatinShaping()
