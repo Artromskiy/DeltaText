@@ -9,8 +9,9 @@ convert or upload a bitmap text atlas without exposing DeltaText internals.
 
 The authoritative C# declarations live in
 [`src/DeltaText/Contract`](src/DeltaText/Contract) under the
-`DeltaText.Contract` namespace. The existing `DeltaText` atlas and cache
-types remain a temporary implementation migration surface.
+`Delta.Text.Contract` namespace. These declarations are part of the primary
+`DeltaText` assembly. DeltaText does not expose atlas or cache types; atlas
+packing and cache policy belong to the consumer as described below.
 
 ## Ownership boundary
 
@@ -307,14 +308,8 @@ Typography's separation between font reading/layout and rendering supports the
 same ownership decision: DeltaText produces glyph data while the renderer owns
 the visual backend and atlas.
 
-## Migration from the current API
+## Current API boundary
 
-The implementation migration should converge on these mappings:
-
-```text
-FontKey                 -> FontSourceId + FontInstanceId
-TextShapingRequest      -> TextShapeRequest
-ShapedGlyphRun          -> ShapedText containing ShapedRun[]
-GlyphBitmap             -> GlyphImage
-IGlyphBitmapGenerator   -> ITextService.GenerateGlyphImage
-```
+Consumers use `Delta.Text.Contract.ITextService` and its immutable value
+types. The former atlas-oriented implementation model is not part of the
+current public surface.
