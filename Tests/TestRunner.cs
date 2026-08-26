@@ -1,6 +1,6 @@
-using DeltaText.Contract;
+using Delta.Text.Contract;
 
-namespace DeltaText.Tests;
+namespace Delta.Text.Tests;
 
 internal static class TestRunner
 {

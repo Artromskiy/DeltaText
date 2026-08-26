@@ -7,8 +7,8 @@ the practical entry-point summary.
 Use `DeltaText.Contract.ITextService`:
 
 ```csharp
-using DeltaText;
-using DeltaText.Contract;
+using Delta.Text;
+using Delta.Text.Contract;
 
 using ITextService text = new HarfBuzzTextService();
 var font = text.OpenFont(new FontOpenRequest(sourceId, fontBytes, faceIndex));

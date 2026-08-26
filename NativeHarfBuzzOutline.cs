@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace DeltaText;
+namespace Delta.Text;
 
 internal static unsafe partial class NativeHarfBuzzOutline
 {

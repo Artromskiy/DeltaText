@@ -1,4 +1,4 @@
-namespace DeltaText.Contract;
+namespace Delta.Text.Contract;
 
 /// <summary>
 /// Provides renderer-neutral font shaping and unpacked glyph images.

@@ -1,4 +1,4 @@
-namespace DeltaText.Contract;
+namespace Delta.Text.Contract;
 
 /// <summary>A half-open range of UTF-16 code units in the original input.</summary>
 public readonly record struct TextRange(int StartUtf16, int LengthUtf16)
