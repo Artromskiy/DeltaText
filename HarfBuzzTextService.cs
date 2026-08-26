@@ -1,7 +1,7 @@
-using Delta.Text.Contract;
+using DeltaText.Contract;
 using SkiaSharp;
 
-namespace Delta.Text;
+namespace DeltaText;
 
 /// <summary>HarfBuzz-backed implementation of the canonical DeltaText service.</summary>
 public sealed class HarfBuzzTextService : ITextService

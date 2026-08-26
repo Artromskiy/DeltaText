@@ -1,14 +1,14 @@
-# Delta.Text user API
+# DeltaText user API
 
 This document is the user-facing API guide. The normative cross-project
 contract is [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md); this page contains only
 the practical entry-point summary.
 
-Use `Delta.Text.Contract.ITextService`:
+Use `DeltaText.Contract.ITextService`:
 
 ```csharp
-using Delta.Text;
-using Delta.Text.Contract;
+using DeltaText;
+using DeltaText.Contract;
 
 using ITextService text = new HarfBuzzTextService();
 var font = text.OpenFont(new FontOpenRequest(sourceId, fontBytes, faceIndex));

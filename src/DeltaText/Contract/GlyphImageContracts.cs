@@ -1,4 +1,4 @@
-namespace Delta.Text.Contract;
+namespace DeltaText.Contract;
 
 /// <summary>Requested CPU representation of a glyph.</summary>
 public enum GlyphImageMode : byte

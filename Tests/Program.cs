@@ -1,3 +1,3 @@
-using Delta.Text.Tests;
+using DeltaText.Tests;
 
 TestRunner.Run(Environment.GetCommandLineArgs());

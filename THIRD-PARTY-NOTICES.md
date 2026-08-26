@@ -2,7 +2,7 @@
 
 ## HarfBuzz native assets
 
-Delta.Text uses the native HarfBuzz library distributed by
+DeltaText uses the native HarfBuzz library distributed by
 `HarfBuzzSharp.NativeAssets.*` version `7.3.0.2`. HarfBuzz is available under
 the Old MIT license. The package's complete license and third-party notice are
 distributed with the package; the upstream sources are at
@@ -10,9 +10,9 @@ https://github.com/harfbuzz/harfbuzz.
 
 ## SkiaSharp
 
-Delta.Text uses `SkiaSharp` version `2.88.8` and the matching platform native
+DeltaText uses `SkiaSharp` version `2.88.8` and the matching platform native
 assets for the implementation's CPU glyph raster path. SkiaSharp remains an
-internal dependency and is not part of the public `Delta.Text.Contract` API.
+internal dependency and is not part of the public `DeltaText.Contract` API.
 SkiaSharp is distributed under the MIT license and includes its own
 third-party notices.
 Upstream sources are at https://github.com/mono/SkiaSharp.
@@ -26,9 +26,9 @@ the SIL Open Font License 1.1. The complete license is
 
 ## msdfgen core
 
-Delta.Text vendors only the `core/` source set from msdfgen v1.13, commit
+DeltaText vendors only the `core/` source set from msdfgen v1.13, commit
 `1874bcf7d9624ccc85b4bc9a85d78116f690f35b`, from
 https://github.com/Chlumsky/msdfgen. Font-import and extension sources are
-excluded; Delta.Text has no FreeType dependency. msdfgen is licensed under
+excluded; DeltaText has no FreeType dependency. msdfgen is licensed under
 the MIT license; the upstream license is retained at
 `third_party/msdfgen/LICENSE.txt`.

@@ -1,4 +1,4 @@
-namespace Delta.Text.Contract;
+namespace DeltaText.Contract;
 
 /// <summary>Stable identity of the immutable bytes from which a font was opened.</summary>
 public readonly record struct FontSourceId(Guid Value)

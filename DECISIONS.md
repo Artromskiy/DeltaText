@@ -1,4 +1,4 @@
-# Delta.Text decisions
+# DeltaText decisions
 
 The durable producer boundary is documented in
 [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md). Implementation details belong in

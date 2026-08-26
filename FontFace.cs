@@ -1,8 +1,8 @@
 using System.Buffers.Binary;
-using Delta.Text.Contract;
+using DeltaText.Contract;
 using SkiaSharp;
 
-namespace Delta.Text;
+namespace DeltaText;
 
 /// <summary>Implementation-owned HarfBuzz face and immutable source storage.</summary>
 internal sealed class FontFace : IDisposable

@@ -1,11 +1,11 @@
-# Delta.Text internal implementation
+# DeltaText internal implementation
 
 This document is internal and is not a consumer API.
 
 `HarfBuzzTextService` owns a synchronized map of generation-safe
 `FontInstanceId` values to `FontFace` objects. `FontFace` owns a private copy of
 font bytes and the HarfBuzz blob, face and font handles until `CloseFont` or
-service disposal. No native handle crosses `Delta.Text.Contract`.
+service disposal. No native handle crosses `DeltaText.Contract`.
 
 HarfBuzz is accessed through the small P/Invoke surface in
 `NativeHarfBuzz.cs` and `NativeHarfBuzzOutline.cs`. Variable-font coordinates

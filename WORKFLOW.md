@@ -8,10 +8,10 @@ the contract.
 Managed checks:
 
 ```bash
-dotnet restore Delta.Text.csproj
-dotnet build Delta.Text.csproj -c Release --no-restore \
+dotnet restore DeltaText.csproj
+dotnet build DeltaText.csproj -c Release --no-restore \
   --disable-build-servers -m:1 /p:UseSharedCompilation=false
-dotnet run --project Tests/Delta.Text.Tests.csproj -c Release
+dotnet run --project Tests/DeltaText.Tests.csproj -c Release
 ```
 
 Native bridge when its source changes:
@@ -26,7 +26,7 @@ The `Native text bridge smoke` workflow builds and runs this bridge on
 `libDeltaTextMsdf.so`, `libDeltaTextMsdf.dylib` or `DeltaTextMsdf.dll` beside
 the test executable before running the MSDF smoke. The Windows runner is the
 checked CI contract; local Windows packaging should ship the DLL beside
-`Delta.Text.dll` or the consuming executable.
+`DeltaText.dll` or the consuming executable.
 
 The workflow sets `DELTATEXT_REQUIRE_NATIVE_SMOKE=1`; missing or unloadable
 native output fails the job. A normal managed test run leaves that variable
@@ -36,7 +36,7 @@ HarfBuzz package assets remain under the standard output layout
 `runtimes/<rid>/native/<library>`. `NativeLibraryResolver` checks files beside
 the managed assembly first, then the current runtime identifier, current
 platform/architecture and the neutral platform RID (`osx`, `linux` or `win`).
-Preserve the `runtimes` directory when copying or publishing Delta.Text; no
+Preserve the `runtimes` directory when copying or publishing DeltaText; no
 consumer-side native-library copy or disk-wide search is required.
 
 | Target | Native output | Required runtime dependency |

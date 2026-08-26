@@ -4,8 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>Delta.Text</AssemblyName>
-    <RootNamespace>Delta.Text</RootNamespace>
+    <AssemblyName>DeltaText</AssemblyName>
+    <RootNamespace>DeltaText</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
@@ -32,7 +32,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.8" />
   </ItemGroup>
 
-  <!-- The managed HarfBuzzSharp wrapper is deliberately not used. Delta.Text owns
+  <!-- The managed HarfBuzzSharp wrapper is deliberately not used. DeltaText owns
        the small ABI surface in NativeHarfBuzz.cs; these packages only supply the
        platform native HarfBuzz binary. -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">

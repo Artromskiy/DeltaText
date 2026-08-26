@@ -9,7 +9,7 @@ convert or upload a bitmap text atlas without exposing DeltaText internals.
 
 The authoritative C# declarations live in
 [`src/DeltaText/Contract`](src/DeltaText/Contract) under the
-`Delta.Text.Contract` namespace. The existing `Delta.Text` atlas and cache
+`DeltaText.Contract` namespace. The existing `DeltaText` atlas and cache
 types remain a temporary implementation migration surface.
 
 ## Ownership boundary

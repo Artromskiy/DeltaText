@@ -45,9 +45,9 @@ jobs:
       - name: Build native bridge
         run: cmake --build native/build --config Release
       - name: Restore managed tests
-        run: dotnet restore Tests/Delta.Text.Tests.csproj
+        run: dotnet restore Tests/DeltaText.Tests.csproj
       - name: Build managed tests
-        run: dotnet build Tests/Delta.Text.Tests.csproj -c Release --no-restore --disable-build-servers -m:1 /p:UseSharedCompilation=false
+        run: dotnet build Tests/DeltaText.Tests.csproj -c Release --no-restore --disable-build-servers -m:1 /p:UseSharedCompilation=false
       - name: Install native bridge beside tests
         shell: bash
         run: |
@@ -64,7 +64,7 @@ jobs:
           [[ -n "$library" ]] || { echo 'Native bridge binary was not produced.' >&2; exit 1; }
           cp "$library" "$output/"
       - name: Run native smoke
-        run: dotnet run --project Tests/Delta.Text.Tests.csproj -c Release --no-build --no-restore
+        run: dotnet run --project Tests/DeltaText.Tests.csproj -c Release --no-build --no-restore
       - name: Upload native binary
         if: always()
         uses: actions/upload-artifact@v7

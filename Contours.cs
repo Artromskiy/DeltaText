@@ -1,4 +1,4 @@
-namespace Delta.Text;
+namespace DeltaText;
 
 internal enum ContourPointKind : byte { Line = 0, QuadraticControl = 1, CubicControl = 2, CubicEnd = 3 }
 

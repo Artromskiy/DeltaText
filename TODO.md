@@ -1,6 +1,6 @@
 # DeltaText TODO
 
-- Keep `Delta.Text.Contract.ITextService` as the only public producer entry
+- Keep `DeltaText.Contract.ITextService` as the only public producer entry
   point.
 - Verify that the platform packaging matrix has real artifacts and
   success/failure disposal coverage for the HarfBuzz outline -> native msdfgen

@@ -4,12 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Delta.Text.Tests</AssemblyName>
-    <RootNamespace>Delta.Text.Tests</RootNamespace>
+    <AssemblyName>DeltaText.Tests</AssemblyName>
+    <RootNamespace>DeltaText.Tests</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Delta.Text.csproj" />
+    <ProjectReference Include="..\DeltaText.csproj" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <None Include="Fixtures\*.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\OFL.txt" CopyToOutputDirectory="PreserveNewest" />

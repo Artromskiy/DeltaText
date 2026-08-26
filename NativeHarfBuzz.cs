@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Text;
-using Delta.Text.Contract;
+using DeltaText.Contract;
 
-namespace Delta.Text;
+namespace DeltaText;
 
 internal static unsafe class NativeHarfBuzz
 {
