@@ -11,8 +11,8 @@ https://github.com/harfbuzz/harfbuzz.
 ## SkiaSharp
 
 Delta.Text uses `SkiaSharp` version `2.88.8` and the matching platform native
-assets for the current implementation's CPU glyph raster path. The legacy
-atlas path is a migration surface, not the public `Delta.Text.Contract` API.
+assets for the implementation's CPU glyph raster path. SkiaSharp remains an
+internal dependency and is not part of the public `Delta.Text.Contract` API.
 SkiaSharp is distributed under the MIT license and includes its own
 third-party notices.
 Upstream sources are at https://github.com/mono/SkiaSharp.

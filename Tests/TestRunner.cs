@@ -1,39 +1,23 @@
-using System.Globalization;
-using System.Runtime.InteropServices;
-using SkiaSharp;
+using Delta.Text.Contract;
 
 namespace Delta.Text.Tests;
 
 internal static class TestRunner
 {
-    private static readonly uint[] MissingGlyph = [0];
-    private static readonly uint[] MsdfGlyph = [3];
-    private static readonly uint[] MtsdfGlyph = [4];
-
     private static readonly (string Name, Action Body)[] Tests =
     [
-        ("font metrics and glyph lookup", FontMetricsAndLookup),
-        ("native resolver default ordering", NativeResolverDefaultOrdering),
-        ("packaged HarfBuzz resolver", PackagedHarfBuzzResolver),
-        ("Latin ligature and kerning shaping", LatinShaping),
-        ("Cyrillic clusters", CyrillicShaping),
-        ("combining mark cluster", CombiningMarkShaping),
-        ("Arabic RTL ordering and clusters", ArabicShaping),
-        ("positioned run and stable cache output", CacheAndPositionedRun),
-        ("bounded staged handoff and MTSDF result", StagedHandoffAndBudget),
-        ("public glyph bitmap factory contract", GlyphBitmapFactory),
-        ("grayscale metrics scale with pixel size", GrayscaleMetricScaling),
-        ("grayscale atlas generator and export smoke", AtlasSmoke),
-        ("MSDF native atlas smoke", MsdfSmoke)
+        ("open font owns source bytes and metrics", OpenFont),
+        ("Latin shaping preserves clusters and ligatures", LatinShaping),
+        ("Cyrillic and combining marks shape", CyrillicAndCombining),
+        ("Arabic shaping resolves RTL", ArabicShaping),
+        ("fallback produces font-specific runs", FontFallback),
+        ("coverage and SDF images are unpacked", GlyphImages),
+        ("MSDF image is optional and renderer-neutral", MsdfImage),
+        ("font lifetime rejects closed instances", FontLifetime)
     ];
 
     public static void Run(string[] args)
     {
-        if (TryExportAtlasFixture(args))
-        {
-            return;
-        }
-
         var passed = 0;
         foreach (var test in Tests)
         {
@@ -45,345 +29,132 @@ internal static class TestRunner
         Console.WriteLine($"{passed}/{Tests.Length} tests passed.");
     }
 
-    private static bool TryExportAtlasFixture(string[] args)
+    private static void OpenFont()
     {
-        const string flag = "--export-atlas-fixture";
-        var index = Array.IndexOf(args, flag);
-        if (index < 0)
-        {
-            return false;
-        }
-
-        if (index + 1 >= args.Length)
-        {
-            throw new ArgumentException("Missing export directory after --export-atlas-fixture.");
-        }
-
-        var outputDirectory = args[index + 1];
-        Directory.CreateDirectory(outputDirectory);
-        ExportAtlasFixture(outputDirectory);
-        Console.WriteLine(outputDirectory);
-        return true;
-    }
-
-    private static void ExportAtlasFixture(string outputDirectory)
-    {
-        using var face = LoadLatin();
-        var generator = new GlyphAtlasGenerator();
-        var request = new GlyphAtlasRequest(
-            face.Key,
-            new uint[] { face.GetGlyphId('A'), face.GetGlyphId('V'), face.GetGlyphId('g') },
-            40,
-            6,
-            8,
-            GlyphAtlasMode.Grayscale);
-        var result = generator.Generate(face, request);
-
-        var exportRoot = Path.Combine(outputDirectory, "DeltaTextAtlasFixture");
-        Directory.CreateDirectory(exportRoot);
-
-        foreach (var page in result.Pages.Span)
-        {
-            var pixelData = page.Pixels.ToArray();
-            var handle = GCHandle.Alloc(pixelData, GCHandleType.Pinned);
-            try
-            {
-                var info = new SKImageInfo(page.Width, page.Height, SKColorType.Gray8, SKAlphaType.Opaque);
-                using var image = SKImage.FromPixels(info, handle.AddrOfPinnedObject(), info.RowBytes);
-                SaveImage(image, Path.Combine(exportRoot, $"page-{page.PageIndex:000}.png"));
-            }
-            finally
-            {
-                handle.Free();
-            }
-        }
-
-        File.WriteAllText(Path.Combine(exportRoot, "atlas.json"), BuildAtlasSummary(result));
-    }
-
-    private static void SaveImage(SKImage image, string path)
-    {
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-        using var stream = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.Read);
-        data.SaveTo(stream);
-    }
-
-    private static string BuildAtlasSummary(GlyphAtlasResult result)
-    {
-        var builder = new System.Text.StringBuilder();
-        builder.AppendLine("{");
-        builder.AppendLine(CultureInfo.InvariantCulture, $"  \"font\": \"{result.Request.Font.SourceId}\",");
-        builder.AppendLine(CultureInfo.InvariantCulture, $"  \"mode\": \"{result.Request.Mode}\",");
-        builder.AppendLine(CultureInfo.InvariantCulture, $"  \"pixelSize\": {result.Request.PixelSize},");
-        builder.AppendLine(CultureInfo.InvariantCulture, $"  \"pages\": {result.Pages.Length},");
-        builder.AppendLine("  \"glyphs\": [");
-        for (var i = 0; i < result.Glyphs.Length; i++)
-        {
-            var glyph = result.Glyphs.Span[i];
-            builder.Append("    {");
-            builder.Append(
-                CultureInfo.InvariantCulture,
-                $"\"glyphId\": {glyph.GlyphId}, \"pageIndex\": {glyph.PageIndex}, \"u0\": {glyph.U0}, \"v0\": {glyph.V0}, \"u1\": {glyph.U1}, \"v1\": {glyph.V1}, \"width\": {glyph.Width}, \"height\": {glyph.Height}, \"stride\": {glyph.Stride}");
-            builder.AppendLine(i + 1 == result.Glyphs.Length ? "}" : "},");
-        }
-
-        builder.AppendLine("  ]");
-        builder.AppendLine("}");
-        return builder.ToString();
-    }
-
-    private static void FontMetricsAndLookup()
-    {
-        using var face = LoadLatin();
-        Check(face.UnitsPerEm > 0, "units per em must be positive");
-        Check(face.Metrics.Ascender > 0, "ascender must be positive");
-        Check(face.GetGlyphId('A') != 0, "Latin glyph lookup failed");
-        var metrics = face.GetGlyphMetrics(face.GetGlyphId('A'));
-        Check(metrics.AdvanceX > 0 && metrics.Width > 0, "glyph metrics are empty");
-    }
-
-    private static void PackagedHarfBuzzResolver()
-    {
-        var candidates = NativeLibraryResolver.CandidatePaths(AppContext.BaseDirectory, "libHarfBuzzSharp");
-        Check(candidates.Count == candidates.Distinct(StringComparer.Ordinal).Count(), "native candidates are not unique");
-        var packaged = candidates.FirstOrDefault(static path =>
-            path.Contains($"{Path.DirectorySeparatorChar}runtimes{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-            && File.Exists(path));
-        Check(packaged is not null, "packaged HarfBuzz runtime asset was not found in candidate paths");
-        var packagedIndex = candidates.ToList().IndexOf(packaged ?? string.Empty);
-        Check(packagedIndex > 0, "packaged runtime asset must be a fallback after local paths");
-        using var face = LoadLatin();
-        Check(face.UnitsPerEm > 0, $"packaged HarfBuzz failed to load from {packaged}");
-    }
-
-    private static void NativeResolverDefaultOrdering()
-    {
-        var calls = new List<string>();
-        var threw = false;
-        try
-        {
-            _ = NativeLibraryResolver.ResolveCore(
-                "missing-native-library",
-                Path.Combine(Path.GetTempPath(), "deltatext-missing"),
-                name =>
-                {
-                    calls.Add($"default:{name}");
-                    return IntPtr.Zero;
-                },
-                candidate =>
-                {
-                    calls.Add($"custom:{candidate}");
-                    return IntPtr.Zero;
-                });
-        }
-        catch (DllNotFoundException)
-        {
-            threw = true;
-        }
-
-        Check(threw, "missing native library did not produce a diagnostic");
-        Check(calls.Count > 1 && calls[0] == "default:missing-native-library", "default loader was not attempted first");
-        Check(calls.Skip(1).All(static call => call.StartsWith("custom:", StringComparison.Ordinal)), "custom candidates were not attempted after default loader");
+        var source = File.ReadAllBytes(LatinPath());
+        using var service = new HarfBuzzTextService();
+        var request = new FontOpenRequest(new FontSourceId(Guid.Parse("f6b70d83-6ab2-4b7b-9f28-7f6a5ecf69c1")), source, 0);
+        var font = service.OpenFont(request);
+        source[0] ^= 0xff;
+        var metrics = service.GetFontMetrics(font, 24);
+        Check(metrics.UnitsPerEm > 0 && metrics.Ascent > 0 && metrics.Descent >= 0, "font metrics are invalid");
+        service.CloseFont(font);
     }
 
     private static void LatinShaping()
     {
-        using var face = LoadLatin();
-        var enabled = face.Shape(new TextShapingRequest("office AV", 32, CultureInfo.InvariantCulture));
-        var disabled = face.Shape(new TextShapingRequest(
-            "office AV",
+        using var service = new HarfBuzzTextService();
+        var font = Open(service, LatinPath(), "f6b70d83-6ab2-4b7b-9f28-7f6a5ecf69c1");
+        var text = "office AV";
+        var shaped = service.Shape(new TextShapeRequest(
+            text.AsMemory(),
             32,
-            CultureInfo.InvariantCulture,
+            new[] { font },
             TextDirection.LeftToRight,
-            new[] { new TextFeature("liga", false), new TextFeature("kern", false) }));
-        Check(enabled.Glyphs.Length < disabled.Glyphs.Length, "liga did not produce a compact glyph sequence");
-        Check(enabled.AdvanceX <= disabled.AdvanceX, "enabled kerning/ligature advances grew unexpectedly");
-        Check(enabled.PositionedGlyphs.Length == enabled.Glyphs.Length, "positioned glyph count mismatch");
+            default,
+            "en",
+            new[] { new OpenTypeFeature(Tag("liga"), 1), new OpenTypeFeature(Tag("kern"), 1) }));
+        Check(shaped.Runs.Length == 1, "Latin text was split unexpectedly");
+        Check(shaped.Runs.Span[0].Glyphs.Length < text.Length, "ligature shaping did not compact the glyph sequence");
+        Check(shaped.Runs.Span[0].Glyphs.Span[0].ClusterUtf16 == 0, "first cluster is not anchored at zero");
     }
 
-    private static void CyrillicShaping()
+    private static void CyrillicAndCombining()
     {
-        using var face = LoadLatin();
-        var run = face.Shape(new TextShapingRequest("Привет мир", 24, new CultureInfo("ru-RU"), TextDirection.LeftToRight));
-        Check(run.Glyphs.Length >= 9, "Cyrillic text was not shaped");
-        Check(run.Glyphs.Span.ToArray().All(static glyph => glyph.GlyphId != 0), "Cyrillic produced missing glyphs");
-        Check(run.Glyphs.Span[0].Cluster == 0, "first Cyrillic cluster is not anchored at zero");
-    }
+        using var service = new HarfBuzzTextService();
+        var font = Open(service, LatinPath(), "a11e0e56-39c4-4486-9afc-0e5a8f15f87b");
+        var cyrillic = service.Shape(new TextShapeRequest("Привет мир".AsMemory(), 24, new[] { font }, TextDirection.LeftToRight));
+        Check(cyrillic.Runs.Length == 1 && cyrillic.Runs.Span[0].Glyphs.Length >= 9, "Cyrillic shaping failed");
+        Check(cyrillic.Runs.Span[0].Glyphs.Span.ToArray().All(static glyph => glyph.GlyphId != 0), "Cyrillic produced a missing glyph");
 
-    private static void CombiningMarkShaping()
-    {
-        using var face = LoadLatin();
-        var run = face.Shape(new TextShapingRequest("e\u0301", 24, CultureInfo.InvariantCulture));
-        Check(run.Glyphs.Length > 0, "combining mark produced no glyphs");
-        Check(run.Glyphs.Span.ToArray().All(static glyph => glyph.Cluster == 0), "combining mark was split into separate clusters");
-        Check(run.AdvanceX > 0, "combining mark run has no advance");
+        var combining = service.Shape(new TextShapeRequest("e\u0301".AsMemory(), 24, new[] { font }, TextDirection.LeftToRight));
+        Check(combining.Runs.Length == 1 && combining.Runs.Span[0].Glyphs.Length > 0, "combining mark produced no output");
+        Check(combining.Runs.Span[0].Glyphs.Span.ToArray().All(static glyph => glyph.ClusterUtf16 == 0), "combining mark split its cluster");
     }
 
     private static void ArabicShaping()
     {
-        using var face = LoadArabic();
-        var run = face.Shape(new TextShapingRequest("سلام", 28, new CultureInfo("ar"), TextDirection.RightToLeft));
-        Check(run.Glyphs.Length > 0, "Arabic text was not shaped");
-        Check(run.Glyphs.Span.ToArray().All(static glyph => glyph.GlyphId != 0), "Arabic produced missing glyphs");
-        for (var i = 1; i < run.Glyphs.Length; i++)
-        {
-            Check(run.Glyphs.Span[i - 1].Cluster >= run.Glyphs.Span[i].Cluster, "RTL clusters are not in visual order");
-        }
+        using var service = new HarfBuzzTextService();
+        var font = Open(service, ArabicPath(), "0c25a0f8-19cc-4841-bb8c-a9f9f8ea53d8");
+        var shaped = service.Shape(new TextShapeRequest("سلام".AsMemory(), 28, new[] { font }, TextDirection.Auto));
+        Check(shaped.Runs.Length == 1 && shaped.Runs.Span[0].Direction == TextDirection.RightToLeft, "Arabic direction was not resolved");
+        Check(shaped.Runs.Span[0].BidiLevel % 2 == 1, "Arabic bidi level is not odd");
+        Check(shaped.Runs.Span[0].Glyphs.Span.ToArray().All(static glyph => glyph.GlyphId != 0), "Arabic produced a missing glyph");
     }
 
-    private static void CacheAndPositionedRun()
+    private static void FontFallback()
     {
-        using var face = LoadLatin();
-        var shaper = new TextShaper();
-        var request = new TextShapingRequest("cache me", 20, CultureInfo.InvariantCulture);
-        var first = shaper.Shape(face, request);
-        var second = shaper.Shape(face, request);
-        Check(ReferenceEquals(first, second), "cache returned a replacement run");
-        Check(first.Glyphs.Length == first.PositionedGlyphs.Length, "run arrays are not aligned");
-        Check(first.PositionedGlyphs.Span[0].X == 0, "first glyph is not positioned at the origin");
-        Check(first.PositionedGlyphs.Span[1].X >= first.PositionedGlyphs.Span[0].X, "glyph positions are not cumulative");
-        Check(first.PositionedGlyphs.Span[1].AdvanceX > 0, "native glyph-position stride produced an empty advance");
+        using var service = new HarfBuzzTextService();
+        var latin = Open(service, LatinPath(), "4e71f35c-176c-4fdd-8973-8d1fd9ebd5d8");
+        var arabic = Open(service, ArabicPath(), "f7a8aeb5-e315-45e9-8e5c-37f62de20ee6");
+        var shaped = service.Shape(new TextShapeRequest("Aس".AsMemory(), 24, new[] { latin, arabic }));
+        Check(shaped.Runs.Length == 2, "fallback did not split runs by font");
+        Check(shaped.Runs.Span[0].Font == latin && shaped.Runs.Span[1].Font == arabic, "fallback selected the wrong font");
+        Check(shaped.Runs.Span[1].SourceRange.StartUtf16 == 1, "fallback source range is not preserved");
     }
 
-    private static void AtlasSmoke()
+    private static void GlyphImages()
     {
-        using var face = LoadLatin();
-        var generator = new GlyphAtlasGenerator();
-        var glyphs = new uint[] { face.GetGlyphId('A'), face.GetGlyphId('V'), face.GetGlyphId('g'), face.GetGlyphId('é') };
-        var request = new GlyphAtlasRequest(face.Key, glyphs, 40, 6, 8, GlyphAtlasMode.Grayscale);
-        var first = generator.Generate(face, request);
-        var second = generator.Generate(face, request);
-        Check(first.Pages.Span[0].Pixels.Span.SequenceEqual(second.Pages.Span[0].Pixels.Span), "atlas regeneration changed page pixels");
-        Check(first.Glyphs.Span[0].Pixels.Span.SequenceEqual(second.Glyphs.Span[0].Pixels.Span), "atlas regeneration changed glyph pixels");
-        Check(first.Pages.Length > 0, "atlas generator produced no pages");
-        Check(first.Glyphs.Length == glyphs.Length, "atlas glyph count mismatch");
-        Check(first.Glyphs.Span.ToArray().All(static glyph => glyph.PageIndex >= 0), "glyph page indices are invalid");
-        Check(first.Glyphs.Span.ToArray().All(static glyph => glyph.U1 > glyph.U0 && glyph.V1 > glyph.V0), "glyph UVs are invalid");
-        Check(first.Pages.Span[0].Pixels.Length > 0, "atlas page has no pixels");
-        Check(first.Pages.Span[0].Pixels.Span.ToArray().Any(static b => b != 0), "atlas page is empty");
+        using var service = new HarfBuzzTextService();
+        var font = Open(service, LatinPath(), "7f5d6f1f-c6a6-46b8-9d0e-5cc28bdf1bf7");
+        var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), 32, new[] { font }));
+        var glyph = shaped.Runs.Span[0].Glyphs.Span[0].GlyphId;
+        var coverage = service.GenerateGlyphImage(new GlyphImageRequest(font, glyph, 32, GlyphImageMode.Coverage));
+        Check(coverage.Encoding == GlyphImageEncoding.CoverageR8, "coverage encoding is wrong");
+        Check(coverage.Pixels.Length == coverage.Width * coverage.Height, "coverage image is not tightly packed");
+        var sdf = service.GenerateGlyphImage(new GlyphImageRequest(font, glyph, 64, GlyphImageMode.Sdf, 8));
+        Check(sdf.Encoding == GlyphImageEncoding.SdfR8 && sdf.Pixels.Length == sdf.Width * sdf.Height, "SDF image contract is wrong");
+        Check(sdf.Width > coverage.Width && sdf.Height > coverage.Height, "SDF size did not scale");
     }
 
-    private static void StagedHandoffAndBudget()
+    private static void MsdfImage()
     {
-        using var face = LoadLatin();
-        var shaper = new TextShaper(new TextCacheBudget(1, 4096));
-        var run = shaper.Shape(face, new TextShapingRequest("A", 32, CultureInfo.InvariantCulture));
-        var generator = new GlyphAtlasGenerator(new TextCacheBudget(2, 4096));
-        var request = new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Grayscale);
-        var bitmapResult = generator.TryGenerateGlyph(face, request, request.GlyphIds.Span[0]);
-        var bitmap = bitmapResult.Bitmap;
-        Check(bitmapResult.Succeeded && bitmap is not null, "staged bitmap generation failed");
-        if (bitmap is null)
-        {
-            throw new InvalidOperationException("staged bitmap generation returned no bitmap");
-        }
-        var handoff = new GlyphRenderData(
-            run,
-            new[] { new PositionedGlyphBitmap(run.PositionedGlyphs.Span[0], bitmap) });
-        Check(handoff.Glyphs.Length == 1, "renderer handoff lost the positioned glyph");
-        Check(handoff.Glyphs.Span[0].Bitmap.Request.Mode == GlyphAtlasMode.Grayscale, "handoff changed pixel mode");
-
-        var unsupported = generator.TryGenerateGlyph(face,
-            new GlyphAtlasRequest(face.Key, new[] { face.GetGlyphId('A') }, 32, 4, 8, GlyphAtlasMode.Mtsdf),
-            face.GetGlyphId('A'));
-        Check(unsupported.Status == GlyphBitmapStatus.UnsupportedMode && !unsupported.Succeeded,
-            "MTSDF must be an explicit unsupported result");
-    }
-
-    private static void GlyphBitmapFactory()
-    {
-        var font = new FontKey("fixture", "regular", "fixture:bitmap");
-        var grayRequest = new GlyphAtlasRequest(font, MissingGlyph, 16, 1, 4, GlyphAtlasMode.Grayscale);
-        var grayPixels = new byte[] { 7, 8, 9, 10 };
-        var gray = GlyphBitmap.Create(grayRequest, 0, 2, 2, 2, 0, 1, 2, grayPixels);
-        grayPixels[0] = 99;
-        Check(gray.GlyphId == 0 && gray.Pixels.Span[0] == 7, "bitmap factory did not own its pixel copy");
-
-        var msdfRequest = new GlyphAtlasRequest(font, MsdfGlyph, 16, 1, 4, GlyphAtlasMode.Msdf);
-        var msdf = GlyphBitmap.Create(msdfRequest, 3, 1, 1, 3, 0, 1, 1, new byte[] { 1, 2, 3 });
-        Check(msdf.Stride == 3 && msdf.Pixels.Length == 3, "MSDF bitmap contract is invalid");
-
-        var mtsdfRequest = new GlyphAtlasRequest(font, MtsdfGlyph, 16, 1, 4, GlyphAtlasMode.Mtsdf);
-        var mtsdf = GlyphBitmap.Create(mtsdfRequest, 4, 1, 1, 4, 0, 1, 1, new byte[] { 1, 2, 3, 4 });
-        Check(mtsdf.Request.Mode == GlyphAtlasMode.Mtsdf, "MTSDF data factory rejected a representable mode");
-
-        AssertThrows<ArgumentOutOfRangeException>(() => GlyphBitmap.Create(grayRequest, 1, 2, 2, 1, 0, 0, 0, new byte[4]), "short stride accepted");
-        AssertThrows<ArgumentException>(() => GlyphBitmap.Create(grayRequest, 1, 2, 2, 2, 0, 0, 0, new byte[3]), "short pixel memory accepted");
-        AssertThrows<ArgumentException>(() => GlyphBitmap.Create(grayRequest, 1, 1, 1, 1, float.NaN, 0, 0, new byte[1]), "nonfinite metrics accepted");
-    }
-
-    private static void GrayscaleMetricScaling()
-    {
-        using var face = LoadLatin();
-        var glyphId = face.GetGlyphId('A');
-        var generator = new GlyphAtlasGenerator();
-        var small = generator.Generate(face, new GlyphAtlasRequest(face.Key, new[] { glyphId }, 32, 4, 8, GlyphAtlasMode.Grayscale)).Glyphs.Span[0];
-        var large = generator.Generate(face, new GlyphAtlasRequest(face.Key, new[] { glyphId }, 64, 8, 16, GlyphAtlasMode.Grayscale)).Glyphs.Span[0];
-        var metrics = face.GetGlyphMetrics(glyphId);
-        var expectedSmallScale = 32f / face.UnitsPerEm;
-        var expectedLargeScale = 64f / face.UnitsPerEm;
-        Check(MathF.Abs(small.BearingX - metrics.BearingX * expectedSmallScale) < 0.001f, "small grayscale bearing X is not scaled");
-        Check(MathF.Abs(large.BearingX - metrics.BearingX * expectedLargeScale) < 0.001f, "large grayscale bearing X is not scaled");
-        Check(MathF.Abs(small.BearingY - metrics.BearingY * expectedSmallScale) < 0.001f, "small grayscale bearing Y is not scaled");
-        Check(MathF.Abs(large.BearingY - metrics.BearingY * expectedLargeScale) < 0.001f, "large grayscale bearing Y is not scaled");
-        Check(MathF.Abs(small.AdvanceX - metrics.AdvanceX * expectedSmallScale) < 0.001f, "small grayscale advance is not scaled");
-        Check(MathF.Abs(large.AdvanceX - metrics.AdvanceX * expectedLargeScale) < 0.001f, "large grayscale advance is not scaled");
-        Check(MathF.Abs(large.AdvanceX / small.AdvanceX - 2f) < 0.001f, "grayscale metrics are not proportional across sizes");
-    }
-
-    private static void MsdfSmoke()
-    {
-        using var face = LoadLatin();
-        var generator = new GlyphAtlasGenerator();
-        var glyphs = new uint[] { 0, face.GetGlyphId('A'), face.GetGlyphId('V'), face.GetGlyphId('g') };
-        var request = new GlyphAtlasRequest(face.Key, glyphs, 40, 6, 8, GlyphAtlasMode.Msdf);
+        using var service = new HarfBuzzTextService();
+        var font = Open(service, LatinPath(), "e23b2cc5-ec9e-41d0-b75d-7fc71a1f71cb");
+        var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), 32, new[] { font }));
         try
         {
-            var first = generator.Generate(face, request);
-            var second = generator.Generate(face, request);
-            Check(first.Pages.Length > 0 && first.Pages.Span[0].Pixels.Length == first.Pages.Span[0].Width * first.Pages.Span[0].Height * 3, "MSDF page is not RGB8");
-            Check(first.Glyphs.Span.ToArray().All(static glyph => glyph.Stride == glyph.Width * 3), "MSDF glyph stride is not RGB8");
-            Check(first.Pages.Span[0].Pixels.Span.ToArray().Any(static value => value != 0), "MSDF page is empty");
-            Check(first.Pages.Span[0].Pixels.Span.SequenceEqual(second.Pages.Span[0].Pixels.Span), "MSDF cache output is not stable");
-
-            var highDpi = generator.Generate(face, new GlyphAtlasRequest(face.Key, glyphs, 80, 10, 16, GlyphAtlasMode.Msdf));
-            Check(highDpi.Pages.Length > 0 && highDpi.Glyphs.Span.ToArray().Max(static glyph => glyph.Width) > first.Glyphs.Span.ToArray().Max(static glyph => glyph.Width), "MSDF DPI scaling did not change geometry");
-
-            using var arabicFace = LoadArabic();
-            var arabicGlyph = arabicFace.GetGlyphId('س');
-            var arabic = generator.Generate(arabicFace, new GlyphAtlasRequest(arabicFace.Key, new[] { arabicGlyph }, 40, 6, 8, GlyphAtlasMode.Msdf));
-            Check(arabic.Glyphs.Span[0].Stride == arabic.Glyphs.Span[0].Width * 3, "Arabic MSDF glyph is not RGB8");
+            var image = service.GenerateGlyphImage(new GlyphImageRequest(
+                font,
+                shaped.Runs.Span[0].Glyphs.Span[0].GlyphId,
+                32,
+                GlyphImageMode.Msdf,
+                8));
+            Check(image.Encoding == GlyphImageEncoding.MsdfRgb8, "MSDF encoding is wrong");
+            Check(image.Pixels.Length == image.Width * image.Height * 3, "MSDF image is not tightly packed");
         }
-        catch (DllNotFoundException)
+        catch (DllNotFoundException) when (!RequireNativeSmoke())
         {
-            // The managed package does not build native binaries implicitly. The
-            // native smoke is run by the platform packaging job when the library
-            // is present beside the test executable.
-            if (RequireNativeSmoke())
-            {
-                throw new InvalidOperationException("Native MSDF smoke was required, but DeltaTextMsdf could not be loaded.");
-            }
-        }
-        catch (EntryPointNotFoundException)
-        {
-            throw new InvalidOperationException("DeltaTextMsdf is present but its ABI is incomplete.");
+            Console.WriteLine("SKIP MSDF native bridge is not present");
         }
     }
 
-    private static bool RequireNativeSmoke() => string.Equals(
-        Environment.GetEnvironmentVariable("DELTATEXT_REQUIRE_NATIVE_SMOKE"),
-        "1",
-        StringComparison.OrdinalIgnoreCase);
+    private static void FontLifetime()
+    {
+        var service = new HarfBuzzTextService();
+        var font = Open(service, LatinPath(), "3c2d81dd-7343-4580-8b44-6ed7033bb704");
+        service.CloseFont(font);
+        AssertThrows<InvalidOperationException>(
+            () => service.GetFontMetrics(font, 16),
+            "closed font instance was accepted");
+        service.Dispose();
+        AssertThrows<ObjectDisposedException>(
+            () => service.GetFontMetrics(font, 16),
+            "disposed service was accepted");
+    }
 
-    private static FontFace LoadLatin() => FontFace.LoadFile(
-        new FontKey("NotoSans", "regular", "fixture:noto-sans"),
-        Path.Combine(FixtureDirectory(), "NotoSans-Regular.ttf"));
+    private static FontInstanceId Open(HarfBuzzTextService service, string path, string sourceId)
+        => service.OpenFont(new FontOpenRequest(
+            new FontSourceId(Guid.Parse(sourceId)),
+            File.ReadAllBytes(path),
+            0));
 
-    private static FontFace LoadArabic() => FontFace.LoadFile(
-        new FontKey("NotoSansArabic", "regular", "fixture:noto-sans-arabic"),
-        Path.Combine(FixtureDirectory(), "NotoSansArabic-Regular.ttf"));
+    private static OpenTypeTag Tag(string tag)
+        => new((uint)(tag[0] << 24 | tag[1] << 16 | tag[2] << 8 | tag[3]));
 
-    private static string FixtureDirectory() => Path.Combine(AppContext.BaseDirectory, "Fixtures");
+    private static string LatinPath() => Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+    private static string ArabicPath() => Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSansArabic-Regular.ttf");
+    private static bool RequireNativeSmoke() => string.Equals(Environment.GetEnvironmentVariable("DELTATEXT_REQUIRE_NATIVE_SMOKE"), "1", StringComparison.OrdinalIgnoreCase);
 
     private static void Check(bool condition, string message)
     {

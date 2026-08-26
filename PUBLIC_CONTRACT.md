@@ -318,17 +318,3 @@ ShapedGlyphRun          -> ShapedText containing ShapedRun[]
 GlyphBitmap             -> GlyphImage
 IGlyphBitmapGenerator   -> ITextService.GenerateGlyphImage
 ```
-
-These current public types should become internal after all consumers migrate:
-
-```text
-GlyphCacheKey
-CachedGlyph
-TextCacheBudget
-IGlyphCache
-GlyphAtlasRequest
-GlyphAtlasResult
-GlyphAtlasPage
-GlyphAtlasGlyph
-IGlyphAtlasGenerator
-```

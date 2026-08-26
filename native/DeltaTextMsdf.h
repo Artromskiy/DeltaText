@@ -40,27 +40,6 @@ typedef struct deltatext_glyph_metrics_t {
     int32_t units_per_em;
 } deltatext_glyph_metrics_t;
 
-typedef enum deltatext_atlas_mode_t {
-    DELTATEXT_ATLAS_MSDF = 0
-} deltatext_atlas_mode_t;
-
-typedef struct deltatext_glyph_atlas_result_t {
-    uint32_t glyph_id;
-    int32_t width;
-    int32_t height;
-    int32_t stride;
-    float bearing_x;
-    float bearing_y;
-    float advance_x;
-    int32_t page_index;
-    float u0;
-    float v0;
-    float u1;
-    float v1;
-    uint8_t* pixels;
-    int32_t pixels_length;
-} deltatext_glyph_atlas_result_t;
-
 DELTATEXT_MSDF_API int deltatext_generate_msdf_from_contours(
     const deltatext_msdf_contour_t* contours, int32_t contour_count,
     int32_t pixel_size,

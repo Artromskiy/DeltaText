@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Text;
+using Delta.Text.Contract;
 
 namespace Delta.Text;
 
@@ -72,6 +74,8 @@ internal static unsafe class NativeHarfBuzz
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern void hb_ot_font_set_funcs(IntPtr font);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    private static extern unsafe void hb_font_set_variations(IntPtr font, byte* variations, int length);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern uint hb_font_get_glyph_extents(IntPtr font, uint glyph, out GlyphExtents extents);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern int hb_font_get_glyph_h_advance(IntPtr font, uint glyph);
@@ -94,9 +98,11 @@ internal static unsafe class NativeHarfBuzz
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr hb_buffer_get_glyph_positions(IntPtr buffer, out uint length);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    private static extern uint hb_glyph_info_get_glyph_flags(IntPtr glyphInfo);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern void hb_shape(IntPtr font, IntPtr buffer, IntPtr features, uint featureCount);
 
-    internal static IntPtr CreateFont(ReadOnlySpan<byte> data, uint faceIndex, out IntPtr blob, out IntPtr face, out int unitsPerEm)
+    internal static IntPtr CreateFont(ReadOnlySpan<byte> data, uint faceIndex, ReadOnlySpan<FontVariation> variations, out IntPtr blob, out IntPtr face, out int unitsPerEm)
     {
         NativeLibraryResolver.EnsureInitialized();
         face = IntPtr.Zero;
@@ -138,15 +144,24 @@ internal static unsafe class NativeHarfBuzz
 
         hb_font_set_scale(font, unitsPerEm, unitsPerEm);
         hb_ot_font_set_funcs(font);
+        try
+        {
+            SetVariations(font, variations);
+        }
+        catch
+        {
+            DestroyFont(font, face, blob);
+            throw;
+        }
         return font;
     }
 
-    internal static GlyphMetrics GetGlyphMetrics(IntPtr font, uint glyph, int unitsPerEm)
+    internal static RawGlyphMetrics GetGlyphMetrics(IntPtr font, uint glyph, int unitsPerEm)
     {
         var advance = hb_font_get_glyph_h_advance(font, glyph);
         var extents = default(GlyphExtents);
         _ = hb_font_get_glyph_extents(font, glyph, out extents);
-        return new GlyphMetrics(glyph, advance, 0, extents.XBearing, extents.YBearing, extents.Width, extents.Height, unitsPerEm);
+        return new RawGlyphMetrics(glyph, advance, 0, extents.XBearing, extents.YBearing, extents.Width, extents.Height, unitsPerEm);
     }
 
     internal static uint GetGlyph(IntPtr font, uint codepoint)
@@ -155,9 +170,10 @@ internal static unsafe class NativeHarfBuzz
     internal static void Shape(
         IntPtr font,
         string text,
+        int clusterOffset,
         TextDirection direction,
-        ReadOnlySpan<TextFeature> requestedFeatures,
-        List<ShapedGlyph> output)
+        ReadOnlySpan<OpenTypeFeature> requestedFeatures,
+        List<RawShapedGlyph> output)
     {
         var buffer = hb_buffer_create();
         if (buffer == IntPtr.Zero)
@@ -184,10 +200,10 @@ internal static unsafe class NativeHarfBuzz
             {
                 features[i] = new Feature
                 {
-                    Tag = MakeTag(requestedFeatures[i].Tag),
-                    Value = requestedFeatures[i].Enabled ? 1u : 0u,
-                    Start = 0,
-                    End = uint.MaxValue
+                    Tag = requestedFeatures[i].Tag.Value,
+                    Value = requestedFeatures[i].Value,
+                    Start = FeatureStart(requestedFeatures[i], clusterOffset),
+                    End = FeatureEnd(requestedFeatures[i], clusterOffset, text.Length)
                 };
             }
 
@@ -202,7 +218,8 @@ internal static unsafe class NativeHarfBuzz
             {
                 var info = infos[i];
                 var position = nativePositions[i];
-                output.Add(new ShapedGlyph(info.Codepoint, checked((int)info.Cluster), position.XAdvance, position.YAdvance, position.XOffset, position.YOffset));
+                var safety = (GlyphSafety)hb_glyph_info_get_glyph_flags((IntPtr)(infos + i));
+                output.Add(new RawShapedGlyph(info.Codepoint, checked(clusterOffset + (int)info.Cluster), position.XAdvance, position.YAdvance, position.XOffset, position.YOffset, safety));
             }
         }
         finally
@@ -238,6 +255,60 @@ internal static unsafe class NativeHarfBuzz
         _ => 0
     };
 
-    private static uint MakeTag(string tag)
-        => ((uint)tag[0] << 24) | ((uint)tag[1] << 16) | ((uint)tag[2] << 8) | tag[3];
+    private static uint FeatureStart(OpenTypeFeature feature, int clusterOffset)
+    {
+        if (feature.Range is not { } range)
+        {
+            return 0;
+        }
+
+        return checked((uint)Math.Max(0, range.StartUtf16 - clusterOffset));
+    }
+
+    private static uint FeatureEnd(OpenTypeFeature feature, int clusterOffset, int textLength)
+    {
+        if (feature.Range is not { } range)
+        {
+            return uint.MaxValue;
+        }
+
+        return checked((uint)Math.Clamp(range.EndUtf16 - clusterOffset, 0, textLength));
+    }
+
+    private static unsafe void SetVariations(IntPtr font, ReadOnlySpan<FontVariation> variations)
+    {
+        if (variations.IsEmpty)
+        {
+            return;
+        }
+
+        var builder = new StringBuilder(variations.Length * 12);
+        for (var i = 0; i < variations.Length; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append(TagToString(variations[i].Axis)).Append('=').Append(variations[i].Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(builder.ToString());
+        fixed (byte* pointer = bytes)
+        {
+            hb_font_set_variations(font, pointer, bytes.Length);
+        }
+    }
+
+    private static string TagToString(OpenTypeTag tag)
+    {
+        var value = tag.Value;
+        return new string(new[]
+        {
+            (char)(value >> 24),
+            (char)(value >> 16),
+            (char)(value >> 8),
+            (char)value
+        });
+    }
 }
