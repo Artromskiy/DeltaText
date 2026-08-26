@@ -12,7 +12,7 @@ https://github.com/harfbuzz/harfbuzz.
 
 DeltaText uses `SkiaSharp` version `2.88.8` and the matching platform native
 assets for the implementation's CPU glyph raster path. SkiaSharp remains an
-internal dependency and is not part of the public `DeltaText.Contract` API.
+internal dependency and is not part of the public `Delta.Text.Contract` API.
 SkiaSharp is distributed under the MIT license and includes its own
 third-party notices.
 Upstream sources are at https://github.com/mono/SkiaSharp.

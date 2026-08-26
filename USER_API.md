@@ -4,7 +4,7 @@ This document is the user-facing API guide. The normative cross-project
 contract is [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md); this page contains only
 the practical entry-point summary.
 
-Use `DeltaText.Contract.ITextService`:
+Use `Delta.Text.Contract.ITextService`:
 
 ```csharp
 using Delta.Text;
