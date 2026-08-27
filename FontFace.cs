@@ -26,6 +26,7 @@ internal sealed class FontFace : IDisposable
     internal int UnitsPerEm { get; }
     internal RawFontMetrics Metrics { get; }
     internal IntPtr NativeFont => _font;
+    internal ReadOnlySpan<byte> FontData => _fontData;
 
     internal static FontFace FromRequest(in FontOpenRequest request)
     {

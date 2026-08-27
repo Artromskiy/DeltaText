@@ -13,6 +13,12 @@ are passed to HarfBuzz as OpenType axis strings. Fallback is resolved into
 contiguous font-specific runs before shaping; shaping output is copied into
 contract-owned arrays.
 
+`OpenFont` owns one defensive copy of the caller's font bytes. Each successful
+`Shape` call creates a new run/glyph snapshot, and each successful image call
+creates a new pixel snapshot; these are deliberate boundary allocations, not
+service-owned reusable buffers. No mutable list, pinned managed array or native
+pixel allocation is exposed to a consumer.
+
 Coverage and SDF rasterization use SkiaSharp internally. MSDF consumes the
 HarfBuzz outline callbacks and the bundled msdfgen C ABI. Native pixels are
 copied before the native allocation is freed. The resolver first uses the

@@ -13,5 +13,6 @@
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <None Include="Fixtures\*.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

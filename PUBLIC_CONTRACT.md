@@ -114,11 +114,12 @@ UI abstraction:
 - `UnsafeToBreak`, `UnsafeToConcat` and `SafeToInsertTatweel` are preserved for
   correct line layout and bounded incremental reshaping.
 
-Unicode bidirectional resolution, grapheme segmentation and line-breaking data
-must track the current Unicode data used by the implementation. No enum in the
-public API encodes a fixed Unicode version. Paragraph formatting, line choice,
-selection and caret policy belong to a higher layout layer; this contract
-preserves the source mapping and shaping flags that layer requires.
+The implementation resolves paragraph base direction, explicit embeddings and
+isolates, weak and neutral types, implicit levels and visual run order before
+HarfBuzz shaping. The bidi resolver uses the Unicode character properties
+available in the target runtime; grapheme segmentation and line-breaking data
+remain responsibilities of the higher layout layer. No enum in the public API
+encodes a fixed Unicode version.
 
 ## Glyph-image requirements
 
@@ -144,8 +145,9 @@ does not require an atlas entry.
 
 SDF and MSDF requests use `DistanceRange`. Atlas spacing is separate and is
 owned by the packer. Color requests include a palette index and foreground
-color so COLR/CPAL and SVG `currentColor` paints can be flattened without
-introducing renderer draw state into DeltaText.
+color so COLR/CPAL v0 layers can be flattened without introducing renderer draw
+state into DeltaText. Newer paint formats and SVG color glyphs use the
+foreground-colored outline fallback when an outline is available.
 
 This v1 boundary supports arbitrary transformations of bitmap atlases. Direct
 access to vector outlines for a custom rasterizer would be a separate optional

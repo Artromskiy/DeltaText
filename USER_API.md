@@ -26,10 +26,18 @@ var image = text.GenerateGlyphImage(new GlyphImageRequest(
 text.CloseFont(font);
 ```
 
+`OpenFont` copies the supplied font bytes. `Shape` and `GenerateGlyphImage`
+return owned snapshots: their arrays and pixel payloads may be retained by the
+caller after the method returns, but are not reusable views into the service or
+its native buffers. The snapshot boundary intentionally allocates for the
+returned result; atlas and cache reuse belongs to the renderer.
+
 `GlyphImage.Pixels` is tightly packed, top-to-bottom, and owned by the returned
 immutable image. DeltaText does not return atlas pages or UVs. The renderer
 copies or consumes the image and owns all atlas/GPU lifetime.
 
-The service currently supports coverage, grayscale SDF and MSDF images.
-Color glyph images and MTSDF are explicit unsupported capabilities in this
-implementation.
+The service supports coverage, grayscale SDF, MSDF and flattened RGBA color
+images. Color images flatten COLR/CPAL version 0 layers when those tables are
+present. Fonts using newer paint formats or SVG color glyphs fall back to the
+monochrome glyph outline and the requested foreground color; MTSDF remains an
+explicitly unsupported representation.

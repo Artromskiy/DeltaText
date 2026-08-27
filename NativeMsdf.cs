@@ -15,7 +15,7 @@ internal static class NativeMsdf
     {
         NativeLibraryResolver.EnsureInitialized();
         width = height = 0; pixels = default;
-        if (contours.Contours.Count == 0)
+        if (!HasValidInput(contours, pixelSize, unitsPerEm, padding, distanceRange))
         {
             return false;
         }
@@ -37,8 +37,15 @@ internal static class NativeMsdf
                 nativeContours[i] = new Contour { Points = pins[i].AddrOfPinnedObject(), Count = points.Length };
             }
             var status = deltatext_generate_msdf_from_contours(nativeContours, nativeContours.Length, pixelSize, unitsPerEm, padding, distanceRange, 0xD37A5EEDu, out var bitmap);
-            if (status != 0 || bitmap.Pixels == IntPtr.Zero)
+            if (status != 0)
             {
+                FreePixels(bitmap.Pixels);
+                return false;
+            }
+
+            if (!HasValidBitmap(bitmap))
+            {
+                FreePixels(bitmap.Pixels);
                 return false;
             }
 
@@ -49,7 +56,7 @@ internal static class NativeMsdf
                 width = bitmap.Width; height = bitmap.Height; pixels = managed;
                 return true;
             }
-            finally { deltatext_msdf_free(bitmap.Pixels); }
+            finally { FreePixels(bitmap.Pixels); }
         }
         finally
         {
@@ -60,6 +67,57 @@ internal static class NativeMsdf
                     pins[i].Free();
                 }
             }
+        }
+    }
+
+    private static bool HasValidInput(GlyphContours contours, int pixelSize, int unitsPerEm, int padding, float distanceRange)
+    {
+        if (contours is null || contours.Contours.Count == 0 || pixelSize <= 0 || unitsPerEm <= 0
+            || padding < 0 || !float.IsFinite(distanceRange) || distanceRange <= 0)
+        {
+            return false;
+        }
+
+        foreach (var contour in contours.Contours)
+        {
+            if (contour.Count < 2)
+            {
+                return false;
+            }
+
+            foreach (var point in contour)
+            {
+                if (!float.IsFinite(point.X) || !float.IsFinite(point.Y)
+                    || point.Kind > ContourPointKind.CubicEnd)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasValidBitmap(in Bitmap bitmap)
+    {
+        if (bitmap.Pixels == IntPtr.Zero || bitmap.Width <= 0 || bitmap.Height <= 0
+            || bitmap.Stride <= 0 || bitmap.Length <= 0 || !float.IsFinite(bitmap.DistanceRange)
+            || bitmap.DistanceRange <= 0)
+        {
+            return false;
+        }
+
+        var expectedStride = (long)bitmap.Width * 3;
+        var expectedLength = expectedStride * bitmap.Height;
+        return expectedStride <= int.MaxValue && expectedLength <= int.MaxValue
+            && bitmap.Stride == expectedStride && bitmap.Length == expectedLength;
+    }
+
+    private static void FreePixels(IntPtr pixels)
+    {
+        if (pixels != IntPtr.Zero)
+        {
+            deltatext_msdf_free(pixels);
         }
     }
 }

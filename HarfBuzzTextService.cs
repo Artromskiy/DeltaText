@@ -31,9 +31,14 @@ public sealed class HarfBuzzTextService : ITextService
         lock (_gate)
         {
             ThrowIfDisposed();
+            if (!font.IsValid)
+            {
+                throw new ArgumentException($"Font instance {font} is not valid.", nameof(font));
+            }
+
             if (!_fonts.Remove(font, out var face))
             {
-                throw new InvalidOperationException($"Font instance {font} is not open.");
+                throw new ArgumentException($"Font instance {font} is not open.", nameof(font));
             }
 
             face.Dispose();
@@ -47,6 +52,7 @@ public sealed class HarfBuzzTextService : ITextService
         lock (_gate)
         {
             ThrowIfDisposed();
+            ValidateOpenFont(font);
             var face = GetFont(font);
             var scale = pixelsPerEm / face.UnitsPerEm;
             return new FontMetrics(
@@ -66,6 +72,7 @@ public sealed class HarfBuzzTextService : ITextService
         lock (_gate)
         {
             ThrowIfDisposed();
+            ValidateFallback(request.FontFallback.Span);
             var fallback = ResolveFallback(request.FontFallback.Span);
             var text = request.Text.ToString();
             if (text.Length == 0)
@@ -74,18 +81,26 @@ public sealed class HarfBuzzTextService : ITextService
             }
 
             var runs = new List<ShapedRun>();
-            foreach (var segment in SplitFallbackSegments(text, fallback))
+            foreach (var bidiRun in BidiResolver.Resolve(text, request.Direction))
             {
-                var raw = new List<RawShapedGlyph>(segment.Length);
-                var direction = ResolveDirection(request.Direction, text.AsSpan(segment.Start, segment.Length));
-                NativeHarfBuzz.Shape(
-                    segment.Face.NativeFont,
-                    text.Substring(segment.Start, segment.Length),
-                    segment.Start,
-                    direction,
-                    request.Features.Span,
-                    raw);
-                runs.Add(BuildRun(segment, direction, request.PixelsPerEm, raw));
+                var segments = SplitFallbackSegments(text, bidiRun.Start, bidiRun.Length, fallback);
+                if ((bidiRun.Level & 1) != 0)
+                {
+                    segments.Reverse();
+                }
+
+                foreach (var segment in segments)
+                {
+                    var raw = new List<RawShapedGlyph>(segment.Length);
+                    NativeHarfBuzz.Shape(
+                        segment.Face.NativeFont,
+                        text.Substring(segment.Start, segment.Length),
+                        segment.Start,
+                        bidiRun.Direction,
+                        request.Features.Span,
+                        raw);
+                    runs.Add(BuildRun(segment, bidiRun.Direction, bidiRun.Level, request.PixelsPerEm, raw));
+                }
             }
 
             return new ShapedText(text.Length, runs.ToArray());
@@ -99,13 +114,14 @@ public sealed class HarfBuzzTextService : ITextService
         lock (_gate)
         {
             ThrowIfDisposed();
+            ValidateOpenFont(request.Font);
             var face = GetFont(request.Font);
             return request.Mode switch
             {
                 GlyphImageMode.Coverage => RenderRaster(face, request, false),
                 GlyphImageMode.Sdf => RenderRaster(face, request, true),
                 GlyphImageMode.Msdf => RenderMsdf(face, request),
-                GlyphImageMode.Color => throw new NotSupportedException("Color glyph images are not enabled by this backend."),
+                GlyphImageMode.Color => RenderColor(face, request),
                 _ => throw new ArgumentOutOfRangeException(nameof(request), "Unknown glyph image mode.")
             };
         }
@@ -141,17 +157,35 @@ public sealed class HarfBuzzTextService : ITextService
         return result;
     }
 
-    private IEnumerable<FallbackSegment> SplitFallbackSegments(string text, FontFace[] fallback)
+    private void ValidateFallback(ReadOnlySpan<FontInstanceId> ids)
     {
-        var start = 0;
-        var selected = SelectFont(text, 0, fallback);
-        for (var offset = 0; offset < text.Length;)
+        for (var i = 0; i < ids.Length; i++)
+        {
+            ValidateOpenFont(ids[i]);
+        }
+    }
+
+    private void ValidateOpenFont(FontInstanceId id)
+    {
+        if (!id.IsValid || !_fonts.ContainsKey(id))
+        {
+            throw new ArgumentException($"Font instance {id} is not open.", nameof(id));
+        }
+    }
+
+    private static List<FallbackSegment> SplitFallbackSegments(string text, int rangeStart, int rangeLength, FontFace[] fallback)
+    {
+        var rangeEnd = checked(rangeStart + rangeLength);
+        var segments = new List<FallbackSegment>();
+        var start = rangeStart;
+        var selected = SelectFont(text, rangeStart, fallback);
+        for (var offset = rangeStart; offset < rangeEnd;)
         {
             var length = CodePointLength(text, offset);
             var current = SelectFont(text, offset, fallback);
             if (!ReferenceEquals(current, selected) && offset > start)
             {
-                yield return new FallbackSegment(start, offset - start, selected);
+                segments.Add(new FallbackSegment(start, offset - start, selected));
                 start = offset;
                 selected = current;
             }
@@ -159,10 +193,12 @@ public sealed class HarfBuzzTextService : ITextService
             offset += length;
         }
 
-        if (text.Length > start)
+        if (rangeEnd > start)
         {
-            yield return new FallbackSegment(start, text.Length - start, selected);
+            segments.Add(new FallbackSegment(start, rangeEnd - start, selected));
         }
+
+        return segments;
     }
 
     private static FontFace SelectFont(string text, int offset, FontFace[] fallback)
@@ -179,7 +215,7 @@ public sealed class HarfBuzzTextService : ITextService
         return fallback[0];
     }
 
-    private ShapedRun BuildRun(FallbackSegment segment, TextDirection direction, float pixelsPerEm, List<RawShapedGlyph> raw)
+    private ShapedRun BuildRun(FallbackSegment segment, TextDirection direction, int bidiLevel, float pixelsPerEm, List<RawShapedGlyph> raw)
     {
         var scale = pixelsPerEm / segment.Face.UnitsPerEm;
         var glyphs = new ShapedGlyph[raw.Count];
@@ -238,7 +274,7 @@ public sealed class HarfBuzzTextService : ITextService
             new TextRange(segment.Start, segment.Length),
             FindFontId(segment.Face),
             direction,
-            direction == TextDirection.RightToLeft ? (byte)1 : (byte)0,
+            checked((byte)bidiLevel),
             pixelsPerEm,
             advanceX,
             advanceY,
@@ -274,9 +310,9 @@ public sealed class HarfBuzzTextService : ITextService
             using var path = font.GetGlyphPath(checked((ushort)request.GlyphId));
             if (path is null || path.IsEmpty)
             {
-                return new GlyphImage(request.Font, request.GlyphId, request.PixelsPerEm,
+                return EmptyImage(request,
                     signedDistance ? GlyphImageEncoding.SdfR8 : GlyphImageEncoding.CoverageR8,
-                    signedDistance ? request.DistanceRange : 0, 0, 0, default, Array.Empty<byte>());
+                    signedDistance ? request.DistanceRange : 0);
             }
 
             var bounds = path.Bounds;
@@ -311,13 +347,106 @@ public sealed class HarfBuzzTextService : ITextService
         }
     }
 
+    private static GlyphImage RenderColor(FontFace face, GlyphImageRequest request)
+    {
+        var typeface = face.CreateTypeface();
+        var paths = new List<ColorPath>();
+        try
+        {
+            using var font = new SKFont(typeface, request.PixelsPerEm)
+            {
+                Edging = SKFontEdging.Antialias,
+                Hinting = SKFontHinting.Slight,
+                LinearMetrics = true,
+                Subpixel = true
+            };
+
+            var layers = ColorFont.GetLayers(face.FontData, request.GlyphId, request.Color);
+            if (layers.Length == 0)
+            {
+                layers = [new ColorGlyphLayer(checked((ushort)request.GlyphId), GetForeground(request.Color))];
+            }
+
+            var left = float.MaxValue;
+            var top = float.MaxValue;
+            var right = float.MinValue;
+            var bottom = float.MinValue;
+            foreach (var layer in layers)
+            {
+                var path = font.GetGlyphPath(layer.GlyphId);
+                if (path is null || path.IsEmpty)
+                {
+                    path?.Dispose();
+                    continue;
+                }
+
+                var bounds = path.Bounds;
+                left = Math.Min(left, bounds.Left);
+                top = Math.Min(top, bounds.Top);
+                right = Math.Max(right, bounds.Right);
+                bottom = Math.Max(bottom, bounds.Bottom);
+                try
+                {
+                    paths.Add(new ColorPath(path, ToSkColor(layer.Color)));
+                }
+                catch
+                {
+                    path.Dispose();
+                    throw;
+                }
+            }
+
+            if (paths.Count == 0)
+            {
+                return EmptyImage(request, GlyphImageEncoding.ColorRgba8PremultipliedSrgb, 0);
+            }
+
+            var width = Math.Max(1, (int)MathF.Ceiling(right - left));
+            var height = Math.Max(1, (int)MathF.Ceiling(bottom - top));
+            using var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Clear(SKColors.Transparent);
+                canvas.Translate(-left, -top);
+                using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
+                foreach (var colorPath in paths)
+                {
+                    paint.Color = colorPath.Color;
+                    canvas.DrawPath(colorPath.Path, paint);
+                }
+
+                canvas.Flush();
+            }
+
+            return new GlyphImage(request.Font, request.GlyphId, request.PixelsPerEm,
+                GlyphImageEncoding.ColorRgba8PremultipliedSrgb, 0, width, height,
+                new TextBounds(left, top, right, bottom), bitmap.GetPixelSpan().ToArray());
+        }
+        finally
+        {
+            foreach (var colorPath in paths)
+            {
+                colorPath.Path.Dispose();
+            }
+
+            typeface.Dispose();
+        }
+    }
+
+    private static Rgba32 GetForeground(ColorGlyphOptions? options)
+        => options?.Foreground ?? new Rgba32(255, 255, 255, 255);
+
+    private static SKColor ToSkColor(Rgba32 color)
+        => new(color.Red, color.Green, color.Blue, color.Alpha);
+
+    private readonly record struct ColorPath(SKPath Path, SKColor Color);
+
     private static GlyphImage RenderMsdf(FontFace face, GlyphImageRequest request)
     {
         var contours = new GlyphContours();
         if (!NativeHarfBuzzOutline.TryRead(face.NativeFont, request.GlyphId, contours))
         {
-            return new GlyphImage(request.Font, request.GlyphId, request.PixelsPerEm,
-                GlyphImageEncoding.MsdfRgb8, request.DistanceRange, 0, 0, default, Array.Empty<byte>());
+            return EmptyImage(request, GlyphImageEncoding.MsdfRgb8, request.DistanceRange);
         }
 
         var padding = checked((int)MathF.Ceiling(request.DistanceRange));
@@ -335,6 +464,10 @@ public sealed class HarfBuzzTextService : ITextService
             GlyphImageEncoding.MsdfRgb8, request.DistanceRange, width, height,
             new TextBounds(left, top, left + width, top + height), pixels);
     }
+
+    private static GlyphImage EmptyImage(in GlyphImageRequest request, GlyphImageEncoding encoding, float distanceRange)
+        => new(request.Font, request.GlyphId, request.PixelsPerEm,
+            encoding, distanceRange, 0, 0, default, Array.Empty<byte>());
 
     private static byte[] BuildSignedDistanceField(ReadOnlySpan<byte> source, int width, int height, float distanceRange)
     {
@@ -383,48 +516,11 @@ public sealed class HarfBuzzTextService : ITextService
         => offset + 1 < text.Length && char.IsHighSurrogate(text[offset]) && char.IsLowSurrogate(text[offset + 1]) ? 2 : 1;
 
     private static int ReadCodePoint(string text, int offset)
-        => ReadCodePoint(text.AsSpan(), offset);
-
-    private static int ReadCodePoint(ReadOnlySpan<char> text, int offset)
-        => CodePointLength(text, offset) == 2
+    {
+        return CodePointLength(text, offset) == 2
             ? char.ConvertToUtf32(text[offset], text[offset + 1])
             : text[offset];
-
-    private static int CodePointLength(ReadOnlySpan<char> text, int offset)
-        => offset + 1 < text.Length && char.IsHighSurrogate(text[offset]) && char.IsLowSurrogate(text[offset + 1]) ? 2 : 1;
-
-    private static TextDirection ResolveDirection(TextDirection requested, ReadOnlySpan<char> text)
-    {
-        if (requested != TextDirection.Auto)
-        {
-            return requested;
-        }
-
-        for (var i = 0; i < text.Length; i++)
-        {
-            var codepoint = ReadCodePoint(text, i);
-            if (IsRtl(codepoint))
-            {
-                return TextDirection.RightToLeft;
-            }
-
-            if (char.IsLetterOrDigit(text[i]))
-            {
-                return TextDirection.LeftToRight;
-            }
-
-            if (i + 1 < text.Length && char.IsHighSurrogate(text[i]))
-            {
-                i++;
-            }
-        }
-
-        return TextDirection.LeftToRight;
     }
-
-    private static bool IsRtl(int codepoint)
-        => (codepoint >= 0x0590 && codepoint <= 0x08FF)
-        || (codepoint >= 0xFB1D && codepoint <= 0xFEFC);
 
     private static void ValidateOpenRequest(in FontOpenRequest request)
     {
@@ -450,9 +546,36 @@ public sealed class HarfBuzzTextService : ITextService
     private static void ValidateShapeRequest(in TextShapeRequest request)
     {
         ValidatePixelsPerEm(request.PixelsPerEm);
+        if (!Enum.IsDefined(request.Direction))
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "Text direction is not supported.");
+        }
+
         if (request.FontFallback.IsEmpty)
         {
             throw new ArgumentException("At least one font fallback instance is required.", nameof(request));
+        }
+
+        if (request.Text.Span.IndexOfAny('\uFFFE', '\uFFFF') >= 0)
+        {
+            throw new ArgumentException("Text contains noncharacters that cannot be shaped.", nameof(request));
+        }
+
+        for (var i = 0; i < request.Text.Length; i++)
+        {
+            if (char.IsHighSurrogate(request.Text.Span[i]))
+            {
+                if (i + 1 >= request.Text.Length || !char.IsLowSurrogate(request.Text.Span[i + 1]))
+                {
+                    throw new ArgumentException("Text contains an unpaired high surrogate.", nameof(request));
+                }
+
+                i++;
+            }
+            else if (char.IsLowSurrogate(request.Text.Span[i]))
+            {
+                throw new ArgumentException("Text contains an unpaired low surrogate.", nameof(request));
+            }
         }
 
         ValidateRange(request.Text.Length, request.Features.Span);
@@ -470,13 +593,17 @@ public sealed class HarfBuzzTextService : ITextService
         }
 
         ValidatePixelsPerEm(request.PixelsPerEm);
+        if (request.GlyphId > ushort.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "Glyph ID is outside the supported font range.");
+        }
         if (request.Mode == GlyphImageMode.Unknown)
         {
             throw new ArgumentOutOfRangeException(nameof(request), "Glyph image mode must be specified.");
         }
 
         if (request.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf
-            && (!float.IsFinite(request.DistanceRange) || request.DistanceRange <= 0))
+            && (!float.IsFinite(request.DistanceRange) || request.DistanceRange <= 0 || request.DistanceRange > 4096))
         {
             throw new ArgumentOutOfRangeException(nameof(request), "Distance range must be finite and greater than zero.");
         }
@@ -484,7 +611,7 @@ public sealed class HarfBuzzTextService : ITextService
 
     private static void ValidatePixelsPerEm(float pixelsPerEm)
     {
-        if (!float.IsFinite(pixelsPerEm) || pixelsPerEm <= 0)
+        if (!float.IsFinite(pixelsPerEm) || pixelsPerEm <= 0 || pixelsPerEm > 4096)
         {
             throw new ArgumentOutOfRangeException(nameof(pixelsPerEm));
         }
@@ -499,7 +626,13 @@ public sealed class HarfBuzzTextService : ITextService
                 throw new ArgumentException("OpenType feature tags must be explicit.", nameof(features));
             }
 
-            if (feature.Range is { } range && (range.StartUtf16 < 0 || range.LengthUtf16 < 0 || range.EndUtf16 > textLength))
+            if (feature.Range is not { } range)
+            {
+                continue;
+            }
+
+            var end = (long)range.StartUtf16 + range.LengthUtf16;
+            if (range.StartUtf16 < 0 || range.LengthUtf16 < 0 || end > textLength)
             {
                 throw new ArgumentException("OpenType feature ranges must fit the UTF-16 input.", nameof(features));
             }

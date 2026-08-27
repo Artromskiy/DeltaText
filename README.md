@@ -2,7 +2,7 @@
 
 Renderer-neutral CPU text producer for Furnace. The public boundary is
 `Delta.Text.Contract.ITextService`: it opens immutable font instances, shapes
-UTF-16 text and returns unpacked coverage/SDF/MSDF glyph images.
+UTF-16 text and returns unpacked coverage/SDF/MSDF/color glyph images.
 
 - User-facing API: [USER_API.md](USER_API.md)
 - Canonical contract: [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md)

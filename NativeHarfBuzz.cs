@@ -105,55 +105,54 @@ internal static unsafe class NativeHarfBuzz
     internal static IntPtr CreateFont(ReadOnlySpan<byte> data, uint faceIndex, ReadOnlySpan<FontVariation> variations, out IntPtr blob, out IntPtr face, out int unitsPerEm)
     {
         NativeLibraryResolver.EnsureInitialized();
+        blob = IntPtr.Zero;
         face = IntPtr.Zero;
         unitsPerEm = 0;
-        fixed (byte* dataPtr = data)
-        {
-            blob = hb_blob_create((IntPtr)dataPtr, checked((uint)data.Length), MemoryDuplicate, IntPtr.Zero, IntPtr.Zero);
-        }
-
-        if (blob == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("HarfBuzz could not create a font blob.");
-        }
-
-        face = hb_face_create(blob, faceIndex);
-        if (face == IntPtr.Zero)
-        {
-            hb_blob_destroy(blob);
-            throw new InvalidOperationException("HarfBuzz could not create a font face.");
-        }
-
-        unitsPerEm = checked((int)hb_face_get_upem(face));
-        if (unitsPerEm <= 0)
-        {
-            hb_face_destroy(face);
-            face = IntPtr.Zero;
-            hb_blob_destroy(blob);
-            throw new InvalidOperationException("The font has no usable units-per-em value.");
-        }
-
-        var font = hb_font_create(face);
-        if (font == IntPtr.Zero)
-        {
-            hb_face_destroy(face);
-            face = IntPtr.Zero;
-            hb_blob_destroy(blob);
-            throw new InvalidOperationException("HarfBuzz could not create a font object.");
-        }
-
-        hb_font_set_scale(font, unitsPerEm, unitsPerEm);
-        hb_ot_font_set_funcs(font);
+        var font = IntPtr.Zero;
         try
         {
+            fixed (byte* dataPtr = data)
+            {
+                blob = hb_blob_create((IntPtr)dataPtr, checked((uint)data.Length), MemoryDuplicate, IntPtr.Zero, IntPtr.Zero);
+            }
+
+            if (blob == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("HarfBuzz could not create a font blob.");
+            }
+
+            face = hb_face_create(blob, faceIndex);
+            if (face == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("HarfBuzz could not create a font face.");
+            }
+
+            var rawUnitsPerEm = hb_face_get_upem(face);
+            if (rawUnitsPerEm == 0 || rawUnitsPerEm > int.MaxValue)
+            {
+                throw new InvalidOperationException("The font has no usable units-per-em value.");
+            }
+
+            unitsPerEm = (int)rawUnitsPerEm;
+            font = hb_font_create(face);
+            if (font == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("HarfBuzz could not create a font object.");
+            }
+
+            hb_font_set_scale(font, unitsPerEm, unitsPerEm);
+            hb_ot_font_set_funcs(font);
             SetVariations(font, variations);
+            return font;
         }
         catch
         {
             DestroyFont(font, face, blob);
+            blob = IntPtr.Zero;
+            face = IntPtr.Zero;
+            unitsPerEm = 0;
             throw;
         }
-        return font;
     }
 
     internal static RawGlyphMetrics GetGlyphMetrics(IntPtr font, uint glyph, int unitsPerEm)
