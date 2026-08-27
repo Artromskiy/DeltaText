@@ -19,8 +19,10 @@ internal static class TestRunner
         ("RTL paragraphs keep European numbers in an LTR run", BidiNumbers),
         ("Unicode bidi classes and explicit overflow stay bounded", BidiUnicodeClasses),
         ("paired brackets resolve without losing source ranges", BidiPairedBrackets),
+        ("Unicode 17 bidi conformance regressions stay stable", BidiConformanceRegressions),
         ("fallback produces font-specific runs", FontFallback),
         ("coverage, SDF and color images are unpacked", GlyphImages),
+        ("CPU renderer composes owned RGBA text images", CpuTextRendering),
         ("managed MSDF is deterministic and channel-separated", ManagedMsdfGeneration),
         ("MSDF image is optional and renderer-neutral", MsdfImage),
         ("invalid requests are rejected", InvalidRequests),
@@ -274,6 +276,43 @@ internal static class TestRunner
             "paired bracket resolution escaped the source range");
     }
 
+    private static void BidiConformanceRegressions()
+    {
+        CheckBidiConformance(
+            "\u05D0\u2066\u202A\u2069\u05D1",
+            TextDirection.LeftToRight,
+            [1, 1, -1, 1, 1],
+            [4, 3, 1, 0]);
+        CheckBidiConformance(
+            "\u0661\u0009(\u0662)",
+            TextDirection.Auto,
+            [2, 0, 1, 2, 1],
+            [0, 1, 4, 3, 2]);
+        CheckBidiConformance(
+            "a \u2329b.1\u3009",
+            TextDirection.RightToLeft,
+            [2, 2, 2, 2, 2, 2, 2],
+            [0, 1, 2, 3, 4, 5, 6]);
+        CheckBidiConformance(
+            "א \u2329ב.1\u3009",
+            TextDirection.LeftToRight,
+            [1, 1, 1, 1, 1, 2, 1],
+            [6, 5, 4, 3, 2, 1, 0]);
+    }
+
+    private static void CheckBidiConformance(
+        string text,
+        TextDirection direction,
+        int[] expectedLevels,
+        int[] expectedVisualOrder)
+    {
+        var actual = BidiResolver.ResolveForConformance(text, direction);
+        Check(actual.Levels.AsSpan().SequenceEqual(expectedLevels),
+            $"bidi levels changed for '{text}'");
+        Check(actual.VisualOrder.AsSpan().SequenceEqual(expectedVisualOrder),
+            $"bidi visual order changed for '{text}'");
+    }
+
     private static void GlyphImages()
     {
         using var service = new SixLaborsTextService();
@@ -313,6 +352,50 @@ internal static class TestRunner
             GlyphImageMode.Color,
             Color: new ColorGlyphOptions(0, new Rgba32(210, 30, 40, 255))));
         Check(!color.Pixels.Span.SequenceEqual(alternate.Pixels.Span), "foreground color was ignored");
+    }
+
+    private static void CpuTextRendering()
+    {
+        using var service = new SixLaborsTextService();
+        var font = Open(service, LatinPath(), "f6c5b2a7-2e5c-4e0e-a827-2e932e68b1c2");
+        var request = new TextShapeRequest("CPU".AsMemory(), 32, new[] { font });
+        var renderer = new CpuTextRenderer(service);
+
+        var coverage = renderer.Render(request);
+        Check(!coverage.IsEmpty, "CPU coverage render is empty");
+        Check(coverage.Pixels.Length == coverage.Width * coverage.Height * 4, "CPU coverage image is not RGBA8");
+        Check(coverage.StrideBytes == coverage.Width * 4, "CPU coverage stride is wrong");
+        Check(coverage.Pixels.Span.ToArray().Any(static value => value != 0), "CPU coverage pixels are empty");
+        Check(coverage.Bounds.Width == coverage.Width && coverage.Bounds.Height == coverage.Height,
+            "CPU coverage bounds do not describe the bitmap");
+
+        var sdf = renderer.Render(request, new CpuTextRenderOptions(
+            GlyphImageMode.Sdf,
+            4,
+            new Rgba32(24, 48, 96, 220)));
+        Check(!sdf.IsEmpty && sdf.Pixels.Span.ToArray().Any(static value => value != 0), "CPU SDF render is empty");
+
+        var msdf = renderer.Render(request, new CpuTextRenderOptions(
+            GlyphImageMode.Msdf,
+            4,
+            new Rgba32(220, 96, 24, 255)));
+        Check(!msdf.IsEmpty && msdf.Pixels.Span.ToArray().Any(static value => value != 0), "CPU MSDF render is empty");
+
+        var color = renderer.Render(request, new CpuTextRenderOptions(
+            GlyphImageMode.Color,
+            0,
+            new Rgba32(24, 220, 96, 255)));
+        Check(!color.IsEmpty && color.Pixels.Span.ToArray().Any(static value => value != 0), "CPU color render is empty");
+
+        var empty = renderer.Render(new TextShapeRequest(ReadOnlyMemory<char>.Empty, 32, new[] { font }));
+        Check(empty.IsEmpty && empty.Pixels.IsEmpty, "CPU empty text produced pixels");
+
+        AssertThrows<ArgumentOutOfRangeException>(
+            () => renderer.Render(request, new CpuTextRenderOptions(GlyphImageMode.Unknown, 0, default)),
+            "CPU renderer accepted an unknown mode");
+        AssertThrows<ArgumentOutOfRangeException>(
+            () => renderer.Render(request, new CpuTextRenderOptions(GlyphImageMode.Msdf, 0, default)),
+            "CPU renderer accepted a zero distance range");
     }
 
     private static void InvalidRequests()

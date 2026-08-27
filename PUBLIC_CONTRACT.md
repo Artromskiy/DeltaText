@@ -117,7 +117,7 @@ abstraction:
 The implementation resolves paragraph base direction, explicit embeddings and
 isolates, weak and neutral types, paired brackets, implicit levels and visual
 run order before shaping through SixLabors.Fonts. The resolver uses an embedded
-Unicode 16.0 `Bidi_Class`/`Bidi_Paired_Bracket` table and implements the
+Unicode 17.0 `Bidi_Class`/`Bidi_Paired_Bracket` table and implements the
 corresponding UAX #9 rules, including overflow handling for explicit controls.
 Grapheme segmentation and line-breaking data remain responsibilities of the
 higher layout layer. Updating the Unicode data version is an internal
@@ -316,7 +316,7 @@ The contract follows these durable parts of established APIs and standards:
   loading, OpenType layout and glyph outline callbacks;
 - [OpenType 1.9.1](https://learn.microsoft.com/en-us/typography/opentype/spec/otff)
   for collections, variable fonts, vertical metrics and color glyph formats;
-- [Unicode 16](https://www.unicode.org/versions/Unicode16.0.0/),
+- [Unicode 17](https://www.unicode.org/versions/Unicode17.0.0/),
   [UAX #9](https://www.unicode.org/reports/tr9/),
   [UAX #14](https://www.unicode.org/reports/tr14/) and
   [UAX #29](https://www.unicode.org/reports/tr29/) for bidi, line-breaking and
