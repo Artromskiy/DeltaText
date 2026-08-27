@@ -1,5 +1,3 @@
-using System.Globalization;
-
 using Delta.Text.Contract;
 
 namespace Delta.Text;
@@ -29,27 +27,20 @@ internal static class BidiResolver
         };
         var items = Tokenize(text);
         ResolveExplicitLevels(text, items, baseLevel);
-        var activeCount = 0;
-        for (var i = 0; i < items.Length; i++)
-        {
-            if (!items[i].Removed)
-            {
-                items[activeCount++] = items[i];
-            }
-        }
-
-        if (activeCount == 0)
+        items = RemoveFormatting(items, retainIsolates: true);
+        if (!HasVisibleItems(items))
         {
             return [new BidiRun(0, text.Length, baseLevel, Direction(baseLevel))];
         }
 
-        if (activeCount != items.Length)
+        ResolveWeakTypes(items);
+        ResolveNeutralTypes(items);
+        items = RemoveFormatting(items, retainIsolates: false);
+        if (items.Length == 0)
         {
-            Array.Resize(ref items, activeCount);
+            return [new BidiRun(0, text.Length, baseLevel, Direction(baseLevel))];
         }
 
-        ResolveWeakTypes(items, baseLevel);
-        ResolveNeutralTypes(items, baseLevel);
         ResolveImplicitLevels(items);
         ReorderVisual(items);
         return BuildRuns(items);
@@ -86,6 +77,10 @@ internal static class BidiResolver
     private static void ResolveExplicitLevels(string text, BidiItem[] items, int baseLevel)
     {
         var stack = new List<EmbeddingState>(8) { new(baseLevel, BidiClass.None, false) };
+        var overflowIsolateCount = 0;
+        var overflowEmbeddingCount = 0;
+        var validIsolateCount = 0;
+
         for (var i = 0; i < items.Length; i++)
         {
             var item = items[i];
@@ -96,11 +91,17 @@ internal static class BidiResolver
                 item.Removed = true;
                 var direction = item.Class is BidiClass.Lre or BidiClass.Lro ? BidiClass.L : BidiClass.R;
                 var nextLevel = NextEmbeddingLevel(state.Level, direction);
-                if (nextLevel <= MaximumExplicitLevel)
+                if (overflowIsolateCount == 0)
                 {
-                    stack.Add(new EmbeddingState(nextLevel,
-                        item.Class is BidiClass.Lro or BidiClass.Rlo ? direction : BidiClass.None,
-                        false));
+                    if (nextLevel <= MaximumExplicitLevel && overflowEmbeddingCount == 0)
+                    {
+                        var overrideType = item.Class is BidiClass.Lro or BidiClass.Rlo ? direction : BidiClass.None;
+                        stack.Add(new EmbeddingState(nextLevel, overrideType, false));
+                    }
+                    else
+                    {
+                        overflowEmbeddingCount++;
+                    }
                 }
 
                 continue;
@@ -109,9 +110,16 @@ internal static class BidiResolver
             if (item.Class == BidiClass.Pdf)
             {
                 item.Removed = true;
-                if (stack.Count > 1 && !stack[^1].Isolate)
+                if (overflowIsolateCount == 0)
                 {
-                    stack.RemoveAt(stack.Count - 1);
+                    if (overflowEmbeddingCount > 0)
+                    {
+                        overflowEmbeddingCount--;
+                    }
+                    else if (stack.Count > 1 && !stack[^1].Isolate)
+                    {
+                        stack.RemoveAt(stack.Count - 1);
+                    }
                 }
 
                 continue;
@@ -120,13 +128,23 @@ internal static class BidiResolver
             if (item.Class is BidiClass.Lri or BidiClass.Rli or BidiClass.Fsi)
             {
                 item.Removed = true;
+                item.Type = BidiClass.Isolate;
                 var direction = item.Class == BidiClass.Lri
                     ? BidiClass.L
                     : item.Class == BidiClass.Rli ? BidiClass.R : FindFirstStrong(text, item.Start + item.Length, baseLevel);
                 var nextLevel = NextEmbeddingLevel(state.Level, direction);
-                if (nextLevel <= MaximumExplicitLevel)
+                if (overflowIsolateCount > 0)
+                {
+                    overflowIsolateCount++;
+                }
+                else if (nextLevel <= MaximumExplicitLevel && overflowEmbeddingCount == 0)
                 {
                     stack.Add(new EmbeddingState(nextLevel, BidiClass.None, true));
+                    validIsolateCount++;
+                }
+                else
+                {
+                    overflowIsolateCount++;
                 }
 
                 continue;
@@ -135,76 +153,118 @@ internal static class BidiResolver
             if (item.Class == BidiClass.Pdi)
             {
                 item.Removed = true;
-                while (stack.Count > 1)
+                item.Type = BidiClass.Isolate;
+                if (overflowIsolateCount > 0)
                 {
-                    var wasIsolate = stack[^1].Isolate;
-                    stack.RemoveAt(stack.Count - 1);
-                    if (wasIsolate)
+                    overflowIsolateCount--;
+                }
+                else if (validIsolateCount > 0)
+                {
+                    overflowEmbeddingCount = 0;
+                    while (stack.Count > 1)
                     {
-                        break;
+                        var wasIsolate = stack[^1].Isolate;
+                        stack.RemoveAt(stack.Count - 1);
+                        if (wasIsolate)
+                        {
+                            validIsolateCount--;
+                            break;
+                        }
                     }
                 }
 
                 continue;
             }
 
-            if (state.Override != BidiClass.None && item.Class is not (BidiClass.Bn or BidiClass.B or BidiClass.S))
+            if (item.Class == BidiClass.Bn)
+            {
+                item.Removed = true;
+                continue;
+            }
+
+            if (state.Override != BidiClass.None && item.Class is not (BidiClass.B or BidiClass.S))
             {
                 item.Type = state.Override;
             }
         }
     }
 
-    private static void ResolveWeakTypes(BidiItem[] items, int baseLevel)
+    private static void ResolveWeakTypes(BidiItem[] items)
     {
-        var previous = baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R;
-        var lastStrong = previous;
-        for (var i = 0; i < items.Length; i++)
+        var start = 0;
+        while (start < items.Length)
         {
-            var item = items[i];
-            if (item.Type == BidiClass.Bn)
+            if (items[start].Type == BidiClass.Isolate)
             {
+                start++;
                 continue;
             }
 
+            var end = start + 1;
+            while (end < items.Length && items[end].Type != BidiClass.Isolate)
+            {
+                end++;
+            }
+
+            ResolveWeakSequence(items, start, end);
+            start = end;
+        }
+    }
+
+    private static void ResolveWeakSequence(BidiItem[] items, int start, int end)
+    {
+        var sos = DirectionClass(items[start].Level);
+        var previous = sos;
+        for (var i = start; i < end; i++)
+        {
+            var item = items[i];
             if (item.Type == BidiClass.Nsm)
             {
-                item.Type = previous is BidiClass.Isolate or BidiClass.Bn ?
-                    (baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R) : previous;
-            }
-
-            if (item.Type == BidiClass.En && lastStrong == BidiClass.R)
-            {
-                item.Type = BidiClass.An;
-            }
-
-            if (item.Type == BidiClass.Al)
-            {
-                item.Type = BidiClass.R;
-            }
-
-            if (item.Type is BidiClass.L or BidiClass.R)
-            {
-                lastStrong = item.Type;
+                item.Type = previous is BidiClass.Isolate or BidiClass.Bn ? sos : previous;
             }
 
             previous = item.Type;
         }
 
-        for (var i = 1; i + 1 < items.Length; i++)
+        var lastStrong = sos;
+        for (var i = start; i < end; i++)
         {
-            if (items[i].Type == BidiClass.Es && items[i - 1].Type == BidiClass.En && items[i + 1].Type == BidiClass.En)
+            var item = items[i];
+            if (item.Type is BidiClass.R or BidiClass.Al)
+            {
+                lastStrong = BidiClass.R;
+            }
+            else if (item.Type == BidiClass.En && lastStrong == BidiClass.R)
+            {
+                item.Type = BidiClass.An;
+            }
+        }
+
+        for (var i = start; i < end; i++)
+        {
+            if (items[i].Type == BidiClass.Al)
+            {
+                items[i].Type = BidiClass.R;
+            }
+        }
+
+        for (var i = start + 1; i + 1 < end; i++)
+        {
+            if (items[i].Type == BidiClass.Es
+                && items[i - 1].Type == BidiClass.En
+                && items[i + 1].Type == BidiClass.En)
             {
                 items[i].Type = BidiClass.En;
             }
-            else if (items[i].Type == BidiClass.Cs && items[i - 1].Type == items[i + 1].Type
+            else if (items[i].Type == BidiClass.Cs
+                && items[i - 1].Type == items[i + 1].Type
                 && items[i - 1].Type is BidiClass.En or BidiClass.An)
             {
                 items[i].Type = items[i - 1].Type;
             }
         }
 
-        for (var i = 0; i < items.Length;)
+        for (var i = start; i < end;)
         {
             if (items[i].Type != BidiClass.Et)
             {
@@ -212,34 +272,36 @@ internal static class BidiResolver
                 continue;
             }
 
-            var end = i + 1;
-            while (end < items.Length && items[end].Type == BidiClass.Et)
+            var sequenceEnd = i + 1;
+            while (sequenceEnd < end && items[sequenceEnd].Type == BidiClass.Et)
             {
-                end++;
+                sequenceEnd++;
             }
 
-            if ((i > 0 && items[i - 1].Type == BidiClass.En) || (end < items.Length && items[end].Type == BidiClass.En))
+            if ((i > start && items[i - 1].Type == BidiClass.En)
+                || (sequenceEnd < end && items[sequenceEnd].Type == BidiClass.En))
             {
-                for (var j = i; j < end; j++)
+                for (var j = i; j < sequenceEnd; j++)
                 {
                     items[j].Type = BidiClass.En;
                 }
             }
 
-            i = end;
+            i = sequenceEnd;
         }
 
-        foreach (var item in items)
+        for (var i = start; i < end; i++)
         {
-            if (item.Type is BidiClass.Es or BidiClass.Et or BidiClass.Cs)
+            if (items[i].Type is BidiClass.Es or BidiClass.Et or BidiClass.Cs)
             {
-                item.Type = BidiClass.On;
+                items[i].Type = BidiClass.On;
             }
         }
 
-        lastStrong = baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R;
-        foreach (var item in items)
+        lastStrong = sos;
+        for (var i = start; i < end; i++)
         {
+            var item = items[i];
             if (item.Type is BidiClass.L or BidiClass.R)
             {
                 lastStrong = item.Type;
@@ -251,9 +313,76 @@ internal static class BidiResolver
         }
     }
 
-    private static void ResolveNeutralTypes(BidiItem[] items, int baseLevel)
+    private static void ResolveNeutralTypes(BidiItem[] items)
     {
-        for (var i = 0; i < items.Length;)
+        var start = 0;
+        while (start < items.Length)
+        {
+            if (items[start].Type == BidiClass.Isolate)
+            {
+                start++;
+                continue;
+            }
+
+            var end = start + 1;
+            while (end < items.Length && items[end].Type != BidiClass.Isolate)
+            {
+                end++;
+            }
+
+            ResolveBracketPairs(items, start, end);
+            ResolveNeutralSequence(items, start, end);
+            start = end;
+        }
+    }
+
+    private static void ResolveBracketPairs(BidiItem[] items, int start, int end)
+    {
+        for (var i = start; i < end; i++)
+        {
+            if (!UnicodeBidiData.TryGetPairedBracket(items[i].CodePoint, out var pair) || !IsNeutral(items[i].Type))
+            {
+                continue;
+            }
+
+            var depth = 0;
+            for (var j = i + 1; j < end; j++)
+            {
+                if (items[j].CodePoint == items[i].CodePoint)
+                {
+                    depth++;
+                }
+                else if (items[j].CodePoint == pair)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                        continue;
+                    }
+
+                    if (!IsNeutral(items[j].Type))
+                    {
+                        break;
+                    }
+
+                    var before = StrongTypeBefore(items, i - 1, start, DirectionClass(items[i].Level));
+                    var after = StrongTypeAfter(items, j + 1, end, DirectionClass(items[i].Level));
+                    var inside = StrongTypeInside(items, i + 1, j);
+                    var resolved = before == after
+                        ? before
+                        : inside == before || inside == after ? inside : DirectionClass(items[i].Level);
+                    items[i].Type = resolved;
+                    items[j].Type = resolved;
+                    break;
+                }
+            }
+        }
+    }
+
+    private static void ResolveNeutralSequence(BidiItem[] items, int start, int end)
+    {
+        var i = start;
+        while (i < end)
         {
             if (!IsNeutral(items[i].Type))
             {
@@ -261,22 +390,76 @@ internal static class BidiResolver
                 continue;
             }
 
-            var end = i + 1;
-            while (end < items.Length && IsNeutral(items[end].Type))
+            var sequenceEnd = i + 1;
+            while (sequenceEnd < end && IsNeutral(items[sequenceEnd].Type))
             {
-                end++;
+                sequenceEnd++;
             }
 
-            var before = StrongForNeutralBefore(items, i - 1, baseLevel);
-            var after = StrongForNeutralAfter(items, end, baseLevel);
-            var resolved = before == after ? before : (baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R);
-            for (var j = i; j < end; j++)
+            var before = StrongTypeBefore(items, i - 1, start, DirectionClass(items[i].Level));
+            var after = StrongTypeAfter(items, sequenceEnd, end, DirectionClass(items[i].Level));
+            var resolved = before == after ? before : DirectionClass(items[i].Level);
+            for (var j = i; j < sequenceEnd; j++)
             {
                 items[j].Type = resolved;
             }
 
-            i = end;
+            i = sequenceEnd;
         }
+    }
+
+    private static BidiClass StrongTypeBefore(BidiItem[] items, int index, int start, BidiClass fallback)
+    {
+        for (var i = index; i >= start; i--)
+        {
+            if (items[i].Type is BidiClass.L or BidiClass.R)
+            {
+                return items[i].Type;
+            }
+
+            if (items[i].Type is BidiClass.En or BidiClass.An)
+            {
+                return BidiClass.R;
+            }
+        }
+
+        return fallback;
+    }
+
+    private static BidiClass StrongTypeAfter(BidiItem[] items, int index, int end, BidiClass fallback)
+    {
+        for (var i = index; i < end; i++)
+        {
+            if (items[i].Type is BidiClass.L or BidiClass.R)
+            {
+                return items[i].Type;
+            }
+
+            if (items[i].Type is BidiClass.En or BidiClass.An)
+            {
+                return BidiClass.R;
+            }
+        }
+
+        return fallback;
+    }
+
+    private static BidiClass StrongTypeInside(BidiItem[] items, int start, int end)
+    {
+        for (var i = start; i < end; i++)
+        {
+            if (items[i].Type is BidiClass.L or BidiClass.R)
+            {
+                return items[i].Type;
+            }
+
+            if (items[i].Type is BidiClass.En or BidiClass.An)
+            {
+                return BidiClass.R;
+            }
+        }
+
+        return BidiClass.None;
     }
 
     private static void ResolveImplicitLevels(BidiItem[] items)
@@ -347,12 +530,43 @@ internal static class BidiResolver
         {
             var length = CodePointLength(text, offset);
             var codepoint = ReadCodePoint(text, offset);
-            var type = Classify(text, offset, codepoint);
-            items.Add(new BidiItem(offset, length, type));
+            items.Add(new BidiItem(offset, length, codepoint, UnicodeBidiData.Get(codepoint)));
             offset += length;
         }
 
         return items.ToArray();
+    }
+
+    private static BidiItem[] RemoveFormatting(BidiItem[] items, bool retainIsolates)
+    {
+        var count = 0;
+        for (var i = 0; i < items.Length; i++)
+        {
+            if (!items[i].Removed || retainIsolates && items[i].Type == BidiClass.Isolate)
+            {
+                items[count++] = items[i];
+            }
+        }
+
+        if (count != items.Length)
+        {
+            Array.Resize(ref items, count);
+        }
+
+        return items;
+    }
+
+    private static bool HasVisibleItems(BidiItem[] items)
+    {
+        foreach (var item in items)
+        {
+            if (item.Type != BidiClass.Isolate)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int ParagraphLevel(string text)
@@ -360,8 +574,7 @@ internal static class BidiResolver
         for (var offset = 0; offset < text.Length;)
         {
             var length = CodePointLength(text, offset);
-            var codepoint = ReadCodePoint(text, offset);
-            var type = Classify(text, offset, codepoint);
+            var type = UnicodeBidiData.Get(ReadCodePoint(text, offset));
             if (type is BidiClass.R or BidiClass.Al)
             {
                 return 1;
@@ -380,25 +593,33 @@ internal static class BidiResolver
 
     private static BidiClass FindFirstStrong(string text, int offset, int baseLevel)
     {
+        var isolateDepth = 0;
         for (var i = offset; i < text.Length;)
         {
             var length = CodePointLength(text, i);
-            var codepoint = ReadCodePoint(text, i);
-            var type = Classify(text, i, codepoint);
-            if (type is BidiClass.L or BidiClass.R or BidiClass.Al)
+            var type = UnicodeBidiData.Get(ReadCodePoint(text, i));
+            if (type is BidiClass.Lri or BidiClass.Rli or BidiClass.Fsi)
+            {
+                isolateDepth++;
+            }
+            else if (type == BidiClass.Pdi)
+            {
+                if (isolateDepth == 0)
+                {
+                    break;
+                }
+
+                isolateDepth--;
+            }
+            else if (isolateDepth == 0 && type is BidiClass.L or BidiClass.R or BidiClass.Al)
             {
                 return type == BidiClass.L ? BidiClass.L : BidiClass.R;
-            }
-
-            if (type == BidiClass.Pdi)
-            {
-                break;
             }
 
             i += length;
         }
 
-        return baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R;
+        return DirectionClass(baseLevel);
     }
 
     private static int CodePointLength(string text, int offset)
@@ -409,44 +630,7 @@ internal static class BidiResolver
             ? char.ConvertToUtf32(text[offset], text[offset + 1])
             : text[offset];
 
-    private static BidiClass StrongForNeutralBefore(BidiItem[] items, int index, int baseLevel)
-    {
-        for (var i = index; i >= 0; i--)
-        {
-            if (items[i].Type is BidiClass.L or BidiClass.R)
-            {
-                return items[i].Type;
-            }
-
-            if (items[i].Type is BidiClass.En or BidiClass.An)
-            {
-                return BidiClass.R;
-            }
-        }
-
-        return baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R;
-    }
-
-    private static BidiClass StrongForNeutralAfter(BidiItem[] items, int index, int baseLevel)
-    {
-        for (var i = index; i < items.Length; i++)
-        {
-            if (items[i].Type is BidiClass.L or BidiClass.R)
-            {
-                return items[i].Type;
-            }
-
-            if (items[i].Type is BidiClass.En or BidiClass.An)
-            {
-                return BidiClass.R;
-            }
-        }
-
-        return baseLevel % 2 == 0 ? BidiClass.L : BidiClass.R;
-    }
-
-    private static bool IsNeutral(BidiClass type) =>
-        type is BidiClass.B or BidiClass.S or BidiClass.Ws or BidiClass.On or BidiClass.Bn or BidiClass.Isolate;
+    private static bool IsNeutral(BidiClass type) => type is BidiClass.B or BidiClass.S or BidiClass.Ws or BidiClass.On;
 
     private static int NextEmbeddingLevel(int current, BidiClass direction)
     {
@@ -460,149 +644,24 @@ internal static class BidiResolver
         return level;
     }
 
+    private static BidiClass DirectionClass(int level) => level % 2 == 0 ? BidiClass.L : BidiClass.R;
+
     private static TextDirection Direction(int level) => level % 2 == 0 ? TextDirection.LeftToRight : TextDirection.RightToLeft;
-
-    private static BidiClass Classify(string text, int offset, int codepoint)
-    {
-        switch (codepoint)
-        {
-            case 0x0009:
-                return BidiClass.S;
-            case 0x000A:
-            case 0x000D:
-            case 0x0085:
-            case 0x2028:
-            case 0x2029:
-                return BidiClass.B;
-            case 0x061C:
-                return BidiClass.Al;
-            case 0x200E:
-                return BidiClass.L;
-            case 0x200F:
-                return BidiClass.R;
-            case 0x202A:
-                return BidiClass.Lre;
-            case 0x202B:
-                return BidiClass.Rle;
-            case 0x202C:
-                return BidiClass.Pdf;
-            case 0x202D:
-                return BidiClass.Lro;
-            case 0x202E:
-                return BidiClass.Rlo;
-            case 0x2066:
-                return BidiClass.Lri;
-            case 0x2067:
-                return BidiClass.Rli;
-            case 0x2068:
-                return BidiClass.Fsi;
-            case 0x2069:
-                return BidiClass.Pdi;
-            case 0x2060:
-            case 0x2061:
-            case 0x2062:
-            case 0x2063:
-            case 0x2064:
-            case 0x206A:
-            case 0x206B:
-            case 0x206C:
-            case 0x206D:
-            case 0x206E:
-            case 0x206F:
-            case 0xFEFF:
-                return BidiClass.Bn;
-        }
-
-        if (codepoint is >= 0x30 and <= 0x39
-            || codepoint is >= 0x660 and <= 0x669
-            || codepoint is >= 0x6F0 and <= 0x6F9
-            || codepoint is >= 0x1D7CE and <= 0x1D7FF)
-        {
-            return codepoint is >= 0x660 and <= 0x669 or >= 0x6F0 and <= 0x6F9
-                ? BidiClass.An
-                : BidiClass.En;
-        }
-
-        if (codepoint is 0x002B or 0x002D or 0x2212)
-        {
-            return BidiClass.Es;
-        }
-
-        if (codepoint is 0x002C or 0x002E or 0x003A or 0x003B or 0x060C or 0x066B or 0x066C)
-        {
-            return BidiClass.Cs;
-        }
-
-        if (codepoint is 0x0024 or 0x00A2 or 0x00A3 or 0x00A4 or 0x00A5 or 0x20A0 or 0x20CF or 0x20D0)
-        {
-            return BidiClass.Et;
-        }
-
-        var category = CharUnicodeInfo.GetUnicodeCategory(text, offset);
-        if (category is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark)
-        {
-            return BidiClass.Nsm;
-        }
-
-        if (category == UnicodeCategory.DecimalDigitNumber)
-        {
-            return BidiClass.En;
-        }
-
-        if (IsRtl(codepoint))
-        {
-            return IsArabic(codepoint) ? BidiClass.Al : BidiClass.R;
-        }
-
-        if (category is UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter
-            or UnicodeCategory.TitlecaseLetter or UnicodeCategory.ModifierLetter
-            or UnicodeCategory.OtherLetter or UnicodeCategory.LetterNumber)
-        {
-            return BidiClass.L;
-        }
-
-        if (category == UnicodeCategory.SpaceSeparator)
-        {
-            return BidiClass.Ws;
-        }
-
-        if (category is UnicodeCategory.Control or UnicodeCategory.Format)
-        {
-            return BidiClass.Bn;
-        }
-
-        return codepoint switch
-        {
-            0x0020 or 0x00A0 or 0x1680 or 0x2000 or 0x2001 or 0x2002 or 0x2003 or 0x2004 or 0x2005
-                or 0x2006 or 0x2007 or 0x2008 or 0x2009 or 0x200A or 0x202F or 0x205F or 0x3000 => BidiClass.Ws,
-            _ => BidiClass.On,
-        };
-    }
-
-    private static bool IsRtl(int codepoint) =>
-        (codepoint >= 0x0590 && codepoint <= 0x08FF)
-        || (codepoint >= 0xFB1D && codepoint <= 0xFEFC)
-        || (codepoint >= 0x10800 && codepoint <= 0x10FFF)
-        || (codepoint >= 0x1E800 && codepoint <= 0x1EEFF);
-
-    private static bool IsArabic(int codepoint) =>
-        (codepoint >= 0x0600 && codepoint <= 0x08FF)
-        || (codepoint >= 0xFB50 && codepoint <= 0xFDFF)
-        || (codepoint >= 0xFE70 && codepoint <= 0xFEFF)
-        || (codepoint >= 0x1EE00 && codepoint <= 0x1EEFF);
 
     private sealed class BidiItem
     {
-        internal BidiItem(int start, int length, BidiClass type)
+        internal BidiItem(int start, int length, int codePoint, BidiClass type)
         {
             Start = start;
             Length = length;
+            CodePoint = codePoint;
             Class = type;
             Type = type;
         }
 
         internal int Start { get; }
         internal int Length { get; }
+        internal int CodePoint { get; }
         internal BidiClass Class { get; }
         internal BidiClass Type { get; set; }
         internal int Level { get; set; }
@@ -610,35 +669,35 @@ internal static class BidiResolver
     }
 
     private readonly record struct EmbeddingState(int Level, BidiClass Override, bool Isolate);
+}
 
-    private enum BidiClass : byte
-    {
-        None,
-        L,
-        R,
-        Al,
-        En,
-        An,
-        Es,
-        Et,
-        Cs,
-        Nsm,
-        Bn,
-        B,
-        S,
-        Ws,
-        On,
-        Lre,
-        Rle,
-        Lro,
-        Rlo,
-        Pdf,
-        Lri,
-        Rli,
-        Fsi,
-        Pdi,
-        Isolate,
-    }
+internal enum BidiClass : byte
+{
+    None,
+    L,
+    R,
+    Al,
+    En,
+    An,
+    Es,
+    Et,
+    Cs,
+    Nsm,
+    Bn,
+    B,
+    S,
+    Ws,
+    On,
+    Lre,
+    Rle,
+    Lro,
+    Rlo,
+    Pdf,
+    Lri,
+    Rli,
+    Fsi,
+    Pdi,
+    Isolate,
 }
 
 internal readonly record struct BidiRun(int Start, int Length, int Level, TextDirection Direction);

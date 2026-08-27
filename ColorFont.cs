@@ -64,6 +64,22 @@ internal static class ColorFont
         return Array.Empty<ColorGlyphLayer>();
     }
 
+    internal static bool HasModernColorTables(ReadOnlySpan<byte> fontData)
+    {
+        if (TryFindTable(fontData, "SVG ", out _))
+        {
+            return true;
+        }
+
+        if (!TryFindTable(fontData, "COLR", out var colr))
+        {
+            return false;
+        }
+
+        var data = fontData.Slice(colr.Offset, colr.Length);
+        return TryReadUInt16(data, 0, out var version) && version >= 1;
+    }
+
     private static Rgba32 ReadPaletteColor(ReadOnlySpan<byte> fontData, ushort paletteIndex, ColorGlyphOptions options)
     {
         if (!TryFindTable(fontData, "CPAL", out var cpal))

@@ -27,6 +27,19 @@ generates deterministic RGB8 pixels in managed code. Its geometric values use
 then checks the assembly directory and current RID runtime asset paths for the
 HarfBuzz asset only. MSDF has no native runtime dependency.
 
+`UnicodeBidiData` is generated from the pinned Unicode 16.0 bidi properties.
+The resolver applies UAX #9 explicit, weak, neutral, implicit and reorder
+stages over that table; isolates remain boundaries until formatting controls
+are removed, and explicit-level overflow is tracked separately from valid
+embedding/isolate stack entries.
+
+COLR/CPAL v0 is flattened from the font tables to honor the requested palette.
+For COLR v1 and SVG-in-OpenType, `RenderColor` submits a glyph-ID text blob to
+Skia so its color-font implementation evaluates the paint graph or embedded
+image. The returned pixels are copied before Skia resources are disposed. If
+that native runtime lacks the format, the existing foreground outline fallback
+is used; no Skia object or font handle crosses the contract.
+
 The implementation deliberately owns no atlas pages, UV coordinates, staging
 buffers, batching keys or GPU resources. Consumer adapters must not re-expose
 these implementation details through a second public text API.

@@ -37,7 +37,9 @@ immutable image. DeltaText does not return atlas pages or UVs. The renderer
 copies or consumes the image and owns all atlas/GPU lifetime.
 
 The service supports coverage, grayscale SDF, MSDF and flattened RGBA color
-images. Color images flatten COLR/CPAL version 0 layers when those tables are
-present. Fonts using newer paint formats or SVG color glyphs fall back to the
-monochrome glyph outline and the requested foreground color; MTSDF remains an
+images. Color images flatten COLR/CPAL version 0 layers with the requested
+palette. COLR version 1 and SVG-in-OpenType glyphs use Skia's color glyph
+renderer with the original glyph ID, preserving native layered paints and
+embedded images when supported by the packaged runtime; an unsupported native
+paint falls back to the foreground-colored outline. MTSDF remains an
 explicitly unsupported representation.

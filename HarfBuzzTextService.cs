@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using Delta.Text.Contract;
 using SkiaSharp;
 
@@ -349,6 +351,13 @@ public sealed class HarfBuzzTextService : ITextService
 
     private static GlyphImage RenderColor(FontFace face, GlyphImageRequest request)
     {
+        var layers = ColorFont.GetLayers(face.FontData, request.GlyphId, request.Color);
+        if (layers.Length == 0 && ColorFont.HasModernColorTables(face.FontData)
+            && TryRenderModernColor(face, request, out var modernImage))
+        {
+            return modernImage;
+        }
+
         var typeface = face.CreateTypeface();
         var paths = new List<ColorPath>();
         try
@@ -361,7 +370,6 @@ public sealed class HarfBuzzTextService : ITextService
                 Subpixel = true
             };
 
-            var layers = ColorFont.GetLayers(face.FontData, request.GlyphId, request.Color);
             if (layers.Length == 0)
             {
                 layers = [new ColorGlyphLayer(checked((ushort)request.GlyphId), GetForeground(request.Color))];
@@ -431,6 +439,86 @@ public sealed class HarfBuzzTextService : ITextService
 
             typeface.Dispose();
         }
+    }
+
+    private static bool TryRenderModernColor(FontFace face, GlyphImageRequest request, out GlyphImage image)
+    {
+        image = EmptyImage(request, GlyphImageEncoding.ColorRgba8PremultipliedSrgb, 0);
+        var typeface = face.CreateTypeface();
+        try
+        {
+            using var font = new SKFont(typeface, request.PixelsPerEm)
+            {
+                Edging = SKFontEdging.Antialias,
+                Hinting = SKFontHinting.Slight,
+                LinearMetrics = true,
+                Subpixel = true
+            };
+            using var paint = new SKPaint
+            {
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+                Color = ToSkColor(GetForeground(request.Color))
+            };
+
+            var glyphs = new[] { checked((ushort)request.GlyphId) };
+            var widths = new float[1];
+            var glyphBounds = new SKRect[1];
+            font.GetGlyphWidths(glyphs, widths, glyphBounds, paint);
+            var bounds = glyphBounds[0];
+            if (bounds.Width <= 0 || bounds.Height <= 0)
+            {
+                if (widths[0] <= 0)
+                {
+                    image = EmptyImage(request, GlyphImageEncoding.ColorRgba8PremultipliedSrgb, 0);
+                    return true;
+                }
+
+                var metrics = font.Metrics;
+                bounds = new SKRect(0, metrics.Ascent, widths[0], metrics.Descent);
+            }
+
+            var width = Math.Max(1, (int)MathF.Ceiling(bounds.Width));
+            var height = Math.Max(1, (int)MathF.Ceiling(bounds.Height));
+            using var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Clear(SKColors.Transparent);
+                canvas.Translate(-bounds.Left, -bounds.Top);
+                var glyphBytes = MemoryMarshal.AsBytes(glyphs.AsSpan());
+                using var blob = SKTextBlob.Create(glyphBytes, SKTextEncoding.GlyphId, font, new SKPoint(0, 0));
+                canvas.DrawText(blob, 0, 0, paint);
+                canvas.Flush();
+            }
+
+            var pixels = bitmap.GetPixelSpan().ToArray();
+            if (!HasNonZeroAlpha(pixels))
+            {
+                return false;
+            }
+
+            image = new GlyphImage(request.Font, request.GlyphId, request.PixelsPerEm,
+                GlyphImageEncoding.ColorRgba8PremultipliedSrgb, 0, width, height,
+                new TextBounds(bounds.Left, bounds.Top, bounds.Right, bounds.Bottom), pixels);
+            return true;
+        }
+        finally
+        {
+            typeface.Dispose();
+        }
+    }
+
+    private static bool HasNonZeroAlpha(ReadOnlySpan<byte> pixels)
+    {
+        for (var i = 3; i < pixels.Length; i += 4)
+        {
+            if (pixels[i] != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static Rgba32 GetForeground(ColorGlyphOptions? options)

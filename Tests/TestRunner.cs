@@ -18,9 +18,12 @@ internal static class TestRunner
         ("bidi controls preserve source mapping", BidiControls),
         ("bidi boundaries preserve source offsets", BidiBoundaries),
         ("RTL paragraphs keep European numbers in an LTR run", BidiNumbers),
+        ("Unicode bidi classes and explicit overflow stay bounded", BidiUnicodeClasses),
+        ("paired brackets resolve without losing source ranges", BidiPairedBrackets),
         ("fallback produces font-specific runs", FontFallback),
         ("coverage, SDF and color images are unpacked", GlyphImages),
         ("color font table parsing is defensive", ColorFontParsing),
+        ("modern color table detection is explicit", ModernColorTableDetection),
         ("managed MSDF is deterministic and channel-separated", ManagedMsdfGeneration),
         ("MSDF image is optional and renderer-neutral", MsdfImage),
         ("invalid requests are rejected", InvalidRequests),
@@ -228,6 +231,45 @@ internal static class TestRunner
             "European numbers were not isolated as an even LTR run");
     }
 
+    private static void BidiUnicodeClasses()
+    {
+        var expectedClasses = new (int CodePoint, BidiClass Class)[]
+        {
+            ('A', BidiClass.L), ('\u05D0', BidiClass.R), ('\u0627', BidiClass.Al), ('1', BidiClass.En),
+            ('\u0661', BidiClass.An), ('+', BidiClass.Es), ('$', BidiClass.Et), (',', BidiClass.Cs),
+            ('\u0301', BidiClass.Nsm), ('\u00AD', BidiClass.Bn), ('\u2029', BidiClass.B), ('\t', BidiClass.S),
+            (' ', BidiClass.Ws), ('!', BidiClass.On), ('\u202A', BidiClass.Lre), ('\u202B', BidiClass.Rle),
+            ('\u202C', BidiClass.Pdf), ('\u2066', BidiClass.Lri), ('\u2067', BidiClass.Rli),
+            ('\u2068', BidiClass.Fsi), ('\u2069', BidiClass.Pdi)
+        };
+        foreach (var expected in expectedClasses)
+        {
+            Check(UnicodeBidiData.Get(expected.CodePoint) == expected.Class,
+                $"Unicode bidi table classified U+{expected.CodePoint:X4} incorrectly");
+        }
+
+        var text = "A\u05D0\u0627\u0661+,$\u0301\u00AD\t \u2066B\u2069\u202Aאב\u202C";
+        var runs = BidiResolver.Resolve(text, TextDirection.Auto);
+        Check(runs.Length > 0, "Unicode bidi classes produced no runs");
+        Check(runs.All(run => run.Start >= 0 && run.Length >= 0 && run.Start + run.Length <= text.Length),
+            "Unicode bidi class resolution escaped the source range");
+
+        var overflow = new string('\u202A', 140) + "A" + new string('\u202C', 140);
+        runs = BidiResolver.Resolve(overflow, TextDirection.LeftToRight);
+        Check(runs.Length > 0 && runs.Any(run => run.Length > 0)
+            && runs.All(run => run.Start >= 0 && run.Start + run.Length <= overflow.Length),
+            "explicit-level overflow escaped the bounded source mapping");
+    }
+
+    private static void BidiPairedBrackets()
+    {
+        var text = "אב (12) ג";
+        var runs = BidiResolver.Resolve(text, TextDirection.Auto);
+        Check(runs.Length > 0, "paired bracket text produced no runs");
+        Check(runs.All(run => run.Start >= 0 && run.Start + run.Length <= text.Length),
+            "paired bracket resolution escaped the source range");
+    }
+
     private static void GlyphImages()
     {
         using var service = new HarfBuzzTextService();
@@ -306,7 +348,23 @@ internal static class TestRunner
         var foreground = new Rgba32(9, 8, 7, 6);
         layers = ColorFont.GetLayers(font, 36, new ColorGlyphOptions(0, foreground));
         Check(layers.Length == 1 && layers[0].Color == foreground, "COLR foreground palette was not respected");
+        Check(!ColorFont.HasModernColorTables(font), "COLR version 0 was classified as a modern color table");
         Check(ColorFont.GetLayers(new byte[12], 0, null).Length == 0, "truncated color tables were accepted");
+    }
+
+    private static void ModernColorTableDetection()
+    {
+        var colr = new byte[36];
+        BinaryPrimitives.WriteUInt16BigEndian(colr.AsSpan(4, 2), 1);
+        WriteTable(colr, 12, "COLR", 28, 2);
+        BinaryPrimitives.WriteUInt16BigEndian(colr.AsSpan(28, 2), 1);
+        Check(ColorFont.HasModernColorTables(colr), "COLR version 1 was not detected");
+
+        var svg = new byte[36];
+        BinaryPrimitives.WriteUInt16BigEndian(svg.AsSpan(4, 2), 1);
+        WriteTable(svg, 12, "SVG ", 28, 2);
+        Check(ColorFont.HasModernColorTables(svg), "OpenType SVG table was not detected");
+        Check(!ColorFont.HasModernColorTables(new byte[12]), "truncated modern color data was accepted");
     }
 
     private static void InvalidRequests()

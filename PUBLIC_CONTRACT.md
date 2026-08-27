@@ -115,11 +115,13 @@ UI abstraction:
   correct line layout and bounded incremental reshaping.
 
 The implementation resolves paragraph base direction, explicit embeddings and
-isolates, weak and neutral types, implicit levels and visual run order before
-HarfBuzz shaping. The bidi resolver uses the Unicode character properties
-available in the target runtime; grapheme segmentation and line-breaking data
-remain responsibilities of the higher layout layer. No enum in the public API
-encodes a fixed Unicode version.
+isolates, weak and neutral types, paired brackets, implicit levels and visual
+run order before HarfBuzz shaping. The resolver uses an embedded Unicode 16.0
+`Bidi_Class`/`Bidi_Paired_Bracket` table and implements the corresponding UAX #9
+rules, including overflow handling for explicit controls. Grapheme
+segmentation and line-breaking data remain responsibilities of the higher
+layout layer. Updating the Unicode data version is an internal data-table
+regeneration, not a public API change.
 
 ## Glyph-image requirements
 
@@ -145,9 +147,13 @@ does not require an atlas entry.
 
 SDF and MSDF requests use `DistanceRange`. Atlas spacing is separate and is
 owned by the packer. Color requests include a palette index and foreground
-color so COLR/CPAL v0 layers can be flattened without introducing renderer draw
-state into DeltaText. Newer paint formats and SVG color glyphs use the
-foreground-colored outline fallback when an outline is available.
+color. COLR/CPAL v0 layers are flattened by DeltaText so palette selection is
+deterministic. COLR v1 paint graphs and SVG-in-OpenType glyphs are rendered
+through the Skia color glyph backend using the original glyph ID; this
+preserves layered paints and embedded images when the packaged Skia runtime
+supports the format. If a native Skia build cannot evaluate a newer color
+format, DeltaText falls back to the foreground-colored outline and returns the
+same valid RGBA contract rather than failing or exposing native handles.
 
 This v1 boundary supports arbitrary transformations of bitmap atlases. Direct
 access to vector outlines for a custom rasterizer would be a separate optional
@@ -300,7 +306,7 @@ The contract follows these durable parts of established APIs and standards:
   immutable runs of exact-font glyph IDs, positions and clusters;
 - [OpenType 1.9.1](https://learn.microsoft.com/en-us/typography/opentype/spec/otff)
   for collections, variable fonts, vertical metrics and color glyph formats;
-- [Unicode 17](https://www.unicode.org/versions/Unicode17.0.0/),
+- [Unicode 16](https://www.unicode.org/versions/Unicode16.0.0/),
   [UAX #9](https://www.unicode.org/reports/tr9/),
   [UAX #14](https://www.unicode.org/reports/tr14/) and
   [UAX #29](https://www.unicode.org/reports/tr29/) for bidi, line-breaking and
