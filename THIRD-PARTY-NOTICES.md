@@ -23,12 +23,3 @@ Upstream sources are at https://github.com/mono/SkiaSharp.
 `Tests/Fixtures/NotoSansArabic-Regular.ttf` are Noto fonts distributed under
 the SIL Open Font License 1.1. The complete license is
 `Tests/Fixtures/OFL.txt`. Source: https://github.com/notofonts/noto-fonts.
-
-## msdfgen core
-
-DeltaText vendors only the `core/` source set from msdfgen v1.13, commit
-`1874bcf7d9624ccc85b4bc9a85d78116f690f35b`, from
-https://github.com/Chlumsky/msdfgen. Font-import and extension sources are
-excluded; DeltaText has no FreeType dependency. msdfgen is licensed under
-the MIT license; the upstream license is retained at
-`third_party/msdfgen/LICENSE.txt`.

@@ -9,9 +9,9 @@ project links.
 
 The next MSDF backend will be implemented in managed C# and will consume the
 contours already extracted by HarfBuzz. HarfBuzz remains the font and outline
-source; it is not treated as an MSDF generator. The current native `msdfgen`
-path remains in place until the managed implementation passes the same
-geometry, pixel and determinism checks.
+source; it is not treated as an MSDF generator. The managed implementation is
+the only MSDF backend and therefore has the same behavior on every supported
+.NET platform.
 
 The intended pipeline is:
 
@@ -21,25 +21,23 @@ HarfBuzz draw callbacks
     -> normalized line/quadratic/cubic edges
     -> deterministic edge coloring
     -> per-channel signed-distance rasterization
-    -> median/error correction
     -> tightly packed GlyphImage
 ```
 
 The implementation is deliberately split into small internal stages rather
 than one large renderer:
 
-- `MsdfGeometry` converts contours into distance-queryable edges;
-- `MsdfEdgeColoring` assigns stable R/G/B channel masks at corners;
+- `MsdfGeometry` converts contours into distance-queryable edges and assigns
+  stable R/G/B channel masks at corners;
 - `MsdfRasterizer` evaluates distances and winding without allocating per
   pixel;
 - `MsdfEncoder` applies the distance range and writes the final byte payload.
 
-The managed path must not create atlas pages, UVs or GPU resources. To keep it
-readable and fast, the hot loop will use flat reusable work buffers, reject
-pixels outside the glyph bounds early, avoid LINQ/iterator allocations and
-use a bounded spatial index for edge candidates. Parallelism is a later
+The managed path must not create atlas pages, UVs or GPU resources. It owns the
+MSDF generation path: curves are flattened to a bounded pixel tolerance,
+corners receive deterministic channel colors, and a compact grid limits
+distance candidates in the pixel loop. Parallelism is a later
 measurement-driven step; correctness and deterministic output come first.
 
-This is an implementation decision and a selected direction, not a claim that
-the managed backend is already available. `NativeMsdf` is still the active
-MSDF implementation until that work is completed.
+The managed backend is internal and returns a tightly packed RGB8 `GlyphImage`
+representation. It has no C++ or native MSDF runtime dependency.

@@ -2,12 +2,8 @@
 
 - Keep `Delta.Text.Contract.ITextService` as the only public producer entry
   point.
-- Verify that the platform packaging matrix has real artifacts and
-  success/failure disposal coverage for the HarfBuzz outline -> native msdfgen
-  -> managed glyph-image route. Documentation alone is not acceptance.
-- Replace the native MSDF implementation with the staged managed backend
-  described in [`DECISIONS.md`](DECISIONS.md), retaining native MSDF as a
-  temporary parity fallback until deterministic pixel and quality checks pass.
+- Keep deterministic managed MSDF coverage for HarfBuzz outlines and glyph
+  image generation on every supported .NET platform.
 - If a producer-side cache is introduced later, keep its policy internal and
   key it by exact font instance, glyph ID, size, image mode and distance-field
   parameters.

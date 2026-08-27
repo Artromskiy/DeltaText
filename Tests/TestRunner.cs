@@ -21,6 +21,7 @@ internal static class TestRunner
         ("fallback produces font-specific runs", FontFallback),
         ("coverage, SDF and color images are unpacked", GlyphImages),
         ("color font table parsing is defensive", ColorFontParsing),
+        ("managed MSDF is deterministic and channel-separated", ManagedMsdfGeneration),
         ("MSDF image is optional and renderer-neutral", MsdfImage),
         ("invalid requests are rejected", InvalidRequests),
         ("font lifetime rejects closed instances", FontLifetime),
@@ -406,21 +407,74 @@ internal static class TestRunner
         using var service = new HarfBuzzTextService();
         var font = Open(service, LatinPath(), "e23b2cc5-ec9e-41d0-b75d-7fc71a1f71cb");
         var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), 32, new[] { font }));
-        try
+        var image = service.GenerateGlyphImage(new GlyphImageRequest(
+            font,
+            shaped.Runs.Span[0].Glyphs.Span[0].GlyphId,
+            32,
+            GlyphImageMode.Msdf,
+            8));
+        Check(image.Encoding == GlyphImageEncoding.MsdfRgb8, "MSDF encoding is wrong");
+        Check(image.Pixels.Length == image.Width * image.Height * 3, "MSDF image is not tightly packed");
+    }
+
+    private static void ManagedMsdfGeneration()
+    {
+        var contours = new GlyphContours();
+        contours.BeginContour(0, 0);
+        contours.LineTo(100, 0);
+        contours.LineTo(100, 100);
+        contours.LineTo(0, 100);
+        contours.Close();
+
+        if (!ManagedMsdf.TryGenerate(contours, 32, 100, 2, 4, 0xD37A5EEDu,
+                out var width, out var height, out var first) || first is null)
         {
-            var image = service.GenerateGlyphImage(new GlyphImageRequest(
-                font,
-                shaped.Runs.Span[0].Glyphs.Span[0].GlyphId,
-                32,
-                GlyphImageMode.Msdf,
-                8));
-            Check(image.Encoding == GlyphImageEncoding.MsdfRgb8, "MSDF encoding is wrong");
-            Check(image.Pixels.Length == image.Width * image.Height * 3, "MSDF image is not tightly packed");
+            throw new InvalidOperationException("Managed MSDF did not generate a valid image.");
         }
-        catch (DllNotFoundException) when (!RequireNativeSmoke())
+
+        if (!ManagedMsdf.TryGenerate(contours, 32, 100, 2, 4, 0xD37A5EEDu,
+                out var repeatedWidth, out var repeatedHeight, out var second) || second is null)
         {
-            Console.WriteLine("SKIP MSDF native bridge is not present");
+            throw new InvalidOperationException("Managed MSDF could not repeat generation.");
         }
+
+        Check(width == repeatedWidth && height == repeatedHeight, "managed MSDF dimensions are not deterministic");
+        Check(first.AsSpan().SequenceEqual(second), "managed MSDF pixels are not deterministic");
+        Check(first.Length == width * height * 3, "managed MSDF payload is not RGB8");
+
+        var hasChannelSeparation = false;
+        var hasOutsideDistance = false;
+        var hasInsideDistance = false;
+        for (var i = 0; i < first.Length; i += 3)
+        {
+            if (first[i] != first[i + 1] || first[i + 1] != first[i + 2])
+            {
+                hasChannelSeparation = true;
+            }
+
+            hasOutsideDistance |= first[i] < 32 || first[i + 1] < 32 || first[i + 2] < 32;
+            hasInsideDistance |= first[i] > 224 || first[i + 1] > 224 || first[i + 2] > 224;
+        }
+
+        Check(hasChannelSeparation, "managed MSDF channels did not separate a sharp corner");
+        Check(hasOutsideDistance, "managed MSDF has no outside distances");
+        Check(hasInsideDistance, "managed MSDF has no inside distances");
+
+        var curved = new GlyphContours();
+        curved.BeginContour(0, 50);
+        curved.QuadraticTo(0, 0, 50, 0);
+        curved.QuadraticTo(100, 0, 100, 50);
+        curved.QuadraticTo(100, 100, 50, 100);
+        curved.QuadraticTo(0, 100, 0, 50);
+        curved.Close();
+        if (!ManagedMsdf.TryGenerate(curved, 32, 100, 2, 4, 0xD37A5EEDu,
+                out var curvedWidth, out var curvedHeight, out var curvedPixels) || curvedPixels is null)
+        {
+            throw new InvalidOperationException("Managed MSDF could not flatten a quadratic contour.");
+        }
+
+        Check(curvedWidth > 0 && curvedHeight > 0 && curvedPixels.Length == curvedWidth * curvedHeight * 3,
+            "managed MSDF quadratic contour payload is malformed");
     }
 
     private static void FontLifetime()
@@ -523,7 +577,6 @@ internal static class TestRunner
     private static string LatinPath() => Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
     private static string ArabicPath() => Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSansArabic-Regular.ttf");
     private static string FixturePath(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);
-    private static bool RequireNativeSmoke() => string.Equals(Environment.GetEnvironmentVariable("DELTATEXT_REQUIRE_NATIVE_SMOKE"), "1", StringComparison.OrdinalIgnoreCase);
 
     private static ulong Fnv1a64(ReadOnlySpan<byte> bytes)
     {

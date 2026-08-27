@@ -450,12 +450,25 @@ public sealed class HarfBuzzTextService : ITextService
         }
 
         var padding = checked((int)MathF.Ceiling(request.DistanceRange));
-        if (!NativeMsdf.TryGenerate(contours, checked((int)MathF.Ceiling(request.PixelsPerEm)), face.UnitsPerEm,
-                padding, request.DistanceRange, out var width, out var height, out var pixels))
+        var pixelSize = checked((int)MathF.Ceiling(request.PixelsPerEm));
+        if (ManagedMsdf.TryGenerate(contours, pixelSize, face.UnitsPerEm, padding, request.DistanceRange,
+                0xD37A5EEDu, out var managedWidth, out var managedHeight, out var managedPixels)
+            && managedPixels is not null)
         {
-            throw new InvalidOperationException("The native msdfgen backend could not generate the glyph image.");
+            return CreateMsdfImage(face, request, padding, managedWidth, managedHeight, managedPixels);
         }
 
+        throw new InvalidOperationException("Managed MSDF could not generate the glyph image.");
+    }
+
+    private static GlyphImage CreateMsdfImage(
+        FontFace face,
+        GlyphImageRequest request,
+        int padding,
+        int width,
+        int height,
+        ReadOnlyMemory<byte> pixels)
+    {
         var metrics = face.GetGlyphMetrics(request.GlyphId);
         var scale = request.PixelsPerEm / face.UnitsPerEm;
         var left = metrics.BearingX * scale - padding;

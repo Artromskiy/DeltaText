@@ -15,10 +15,9 @@ glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or shaders.
 - [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md) — text/render ownership
   and migration order.
 
-Do not edit vendored `third_party/msdfgen` except for an explicitly reviewed
-vendor update. FreeType is not an engine dependency.
+MSDF is implemented in managed C#; the project has no native MSDF bridge or
+vendored font rasterizer. FreeType is not an engine dependency.
 
-Skills: `abi-and-calling-conventions` for the native bridge, `cmake` for its
-build, `cpp-templates` only inside reviewed msdfgen integration,
+Skills: `abi-and-calling-conventions` for the HarfBuzz native boundary,
 `performance-speedup` for shaping/cache workloads, and `static-analysis` for
 native lifetime and ownership review.

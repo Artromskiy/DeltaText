@@ -7,8 +7,7 @@ internal static class NativeLibraryResolver
 {
     private static readonly string[] NativeLibraryNames =
     [
-        "libHarfBuzzSharp",
-        "DeltaTextMsdf"
+        "libHarfBuzzSharp"
     ];
 
     static NativeLibraryResolver()

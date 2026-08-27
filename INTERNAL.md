@@ -20,10 +20,12 @@ service-owned reusable buffers. No mutable list, pinned managed array or native
 pixel allocation is exposed to a consumer.
 
 Coverage and SDF rasterization use SkiaSharp internally. MSDF consumes the
-HarfBuzz outline callbacks and the bundled msdfgen C ABI. Native pixels are
-copied before the native allocation is freed. The resolver first uses the
-default OS loader and then checks the assembly directory and current RID
-runtime asset paths.
+HarfBuzz outline callbacks, flattens curves to a bounded pixel tolerance and
+generates deterministic RGB8 pixels in managed code. Its geometric values use
+`Delta.Maths.float2` and `Delta.Maths.DeltaMaths`, so DeltaText has no direct
+`System.Numerics` dependency. The resolver first uses the default OS loader and
+then checks the assembly directory and current RID runtime asset paths for the
+HarfBuzz asset only. MSDF has no native runtime dependency.
 
 The implementation deliberately owns no atlas pages, UV coordinates, staging
 buffers, batching keys or GPU resources. Consumer adapters must not re-expose
