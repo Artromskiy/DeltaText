@@ -1,7 +1,8 @@
 # DeltaText agent guide
 
-Scope: renderer-neutral font identity, HarfBuzz shaping/outlines, positioned
-glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or shaders.
+Scope: renderer-neutral font identity, SixLabors.Fonts shaping/outlines,
+positioned glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or
+shaders.
 
 - [README.md](README.md) — short project overview and navigation.
 - [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative v1 data model, ownership,
@@ -15,9 +16,10 @@ glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or shaders.
 - [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md) — text/render ownership
   and migration order.
 
-MSDF is implemented in managed C#; the project has no native MSDF bridge or
-vendored font rasterizer. FreeType is not an engine dependency.
+SixLabors.Fonts is the only font-processing dependency. Pixel storage,
+coverage/SDF/MSDF/color rasterization and returned image ownership stay in
+managed DeltaText code. ImageSharp, FreeType, HarfBuzz native assets and a
+native MSDF bridge are not runtime dependencies.
 
-Skills: `abi-and-calling-conventions` for the HarfBuzz native boundary,
-`performance-speedup` for shaping/cache workloads, and `static-analysis` for
-native lifetime and ownership review.
+Skills: `performance-speedup` for shaping/cache workloads and
+`static-analysis` for ownership review.

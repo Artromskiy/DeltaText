@@ -1,21 +1,16 @@
 # Third-party notices
 
-## HarfBuzz native assets
+## SixLabors.Fonts
 
-DeltaText uses the native HarfBuzz library distributed by
-`HarfBuzzSharp.NativeAssets.*` version `7.3.0.2`. HarfBuzz is available under
-the Old MIT license. The package's complete license and third-party notice are
-distributed with the package; the upstream sources are at
-https://github.com/harfbuzz/harfbuzz.
+DeltaText uses `SixLabors.Fonts` version `3.0.0` for font loading, OpenType
+layout and outline callbacks. It is licensed under the Six Labors Split
+License, version 1.0, June 2022. The applicable license file is supplied to
+the local build through `SixLaborsLicenseFile`; it is intentionally kept
+outside Git at `Furnace/Licenses/SixLabors.lic`. The package's complete notice
+is part of the NuGet package.
 
-## SkiaSharp
-
-DeltaText uses `SkiaSharp` version `2.88.8` and the matching platform native
-assets for the implementation's CPU glyph raster path. SkiaSharp remains an
-internal dependency and is not part of the public `Delta.Text.Contract` API.
-SkiaSharp is distributed under the MIT license and includes its own
-third-party notices.
-Upstream sources are at https://github.com/mono/SkiaSharp.
+DeltaText does not depend on ImageSharp, SkiaSharp, HarfBuzz native assets or
+FreeType. Its pixel rasterization is its own managed implementation.
 
 ## Noto test fonts
 

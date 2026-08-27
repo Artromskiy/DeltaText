@@ -3,7 +3,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>DeltaText</AssemblyName>
     <RootNamespace>Delta.Text</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -12,6 +11,8 @@
 
   <ItemGroup>
     <Compile Remove="Tests/**/*.cs" />
+    <Compile Remove="**/obj/**/*.cs" />
+    <Compile Remove="**/bin/**/*.cs" />
     <None Remove="Tests/**/*.ttf" />
     <None Remove="Tests/OFL.txt" />
   </ItemGroup>
@@ -21,29 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp" Version="2.88.8" />
-  </ItemGroup>
-
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.8" />
-  </ItemGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
-  </ItemGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.8" />
-  </ItemGroup>
-
-  <!-- The managed HarfBuzzSharp wrapper is deliberately not used. DeltaText owns
-       the small ABI surface in NativeHarfBuzz.cs; these packages only supply the
-       platform native HarfBuzz binary. -->
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="7.3.0.2" />
-  </ItemGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.2" />
-  </ItemGroup>
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="7.3.0.2" />
+    <PackageReference Include="SixLabors.Fonts" Version="3.0.0" />
   </ItemGroup>
 </Project>

@@ -14,17 +14,22 @@ dotnet build DeltaText.csproj -c Release --no-restore \
 dotnet run --project Tests/DeltaText.Tests.csproj -c Release
 ```
 
-MSDF is implemented entirely in managed C# and requires no native MSDF build,
-DLL or platform-specific C++ runtime. The same deterministic RGB8 path is used
-on Linux, macOS and Windows. Gray8 remains available through the existing
-managed raster path.
+SixLabors.Fonts supplies font loading, OpenType shaping, fallback selection and
+outline callbacks. DeltaText keeps the returned pixels and performs coverage,
+SDF, MSDF and color rasterization in managed C#. There is no native font or
+MSDF DLL to copy, and no ImageSharp runtime dependency.
 
-HarfBuzz package assets remain under the standard output layout
-`runtimes/<rid>/native/<library>`. `NativeLibraryResolver` checks files beside
-the managed assembly first, then the current runtime identifier, current
-platform/architecture and the neutral platform RID (`osx`, `linux` or `win`).
-Preserve the `runtimes` directory when copying or publishing DeltaText; no
-consumer-side native-library copy or disk-wide search is required.
+SixLabors.Fonts 3.0.0 is distributed under the Six Labors Split License. The
+package's build target requires a local license file. Set the property through
+the environment for local and CI builds; do not commit the file or its path:
+
+```bash
+SixLaborsLicenseFile=/path/to/sixlabors.lic dotnet build DeltaText.csproj -c Release
+```
+
+The current local license is kept outside Git at
+`Furnace/Licenses/SixLabors.lic`. The managed build is otherwise the same on
+Linux, macOS and Windows.
 
 ## Code metrics
 
@@ -32,7 +37,7 @@ Run the same analyzer/code-metrics build locally and in the manual GitHub
 Actions workflow through the repository wrapper:
 
 ```bash
-./eng/code-metrics.sh -v:q
+SixLaborsLicenseFile=/path/to/sixlabors.lic ./eng/code-metrics.sh -v:q
 ```
 
 `eng/code-metrics.sh` converts `CODE_METRICS_ERROR_LOG` (default:
@@ -42,7 +47,8 @@ instead of resolving a missing directory relative to each project. An
 explicit destination is supported:
 
 ```bash
-CODE_METRICS_ERROR_LOG=/tmp/code-metrics.sarif ./eng/code-metrics.sh -v:q
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+  CODE_METRICS_ERROR_LOG=/tmp/code-metrics.sarif ./eng/code-metrics.sh -v:q
 ```
 
 Inspect the SARIF and summary artifacts from the manual workflow. The rules

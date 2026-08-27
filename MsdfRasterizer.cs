@@ -85,7 +85,7 @@ internal static class MsdfRasterizer
         return pixels;
     }
 
-    private static float DistanceSquared(float2 point, float2 start, float2 end)
+    internal static float DistanceSquared(float2 point, float2 start, float2 end)
     {
         var edge = end - start;
         var lengthSquared = float2.SqrLength(edge);
@@ -99,7 +99,7 @@ internal static class MsdfRasterizer
         return float2.SqrLength(point - (start + edge * projection));
     }
 
-    private static bool IsInside(MsdfEdge[] edges, float2 point)
+    internal static bool IsInside(MsdfEdge[] edges, float2 point)
     {
         var winding = 0;
         for (var i = 0; i < edges.Length; i++)

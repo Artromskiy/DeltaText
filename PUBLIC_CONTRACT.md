@@ -17,7 +17,7 @@ packing and cache policy belong to the consumer as described below.
 
 DeltaText owns:
 
-- immutable font bytes and native font handles between `OpenFont` and
+- immutable font bytes and font-backend state between `OpenFont` and
   `CloseFont`;
 - OpenType shaping, fallback resolution and scaled font metrics;
 - glyph outline interpretation and generation of unpacked coverage, SDF, MSDF
@@ -101,8 +101,8 @@ the current glyph offset.
 
 ## Shaping requirements
 
-The feature contract mirrors OpenType and HarfBuzz rather than a Boolean-only
-UI abstraction:
+The feature contract mirrors OpenType rather than a Boolean-only UI
+abstraction:
 
 - feature and variation axes use extensible four-byte tags;
 - feature values are `uint` because many features accept values other than
@@ -116,12 +116,12 @@ UI abstraction:
 
 The implementation resolves paragraph base direction, explicit embeddings and
 isolates, weak and neutral types, paired brackets, implicit levels and visual
-run order before HarfBuzz shaping. The resolver uses an embedded Unicode 16.0
-`Bidi_Class`/`Bidi_Paired_Bracket` table and implements the corresponding UAX #9
-rules, including overflow handling for explicit controls. Grapheme
-segmentation and line-breaking data remain responsibilities of the higher
-layout layer. Updating the Unicode data version is an internal data-table
-regeneration, not a public API change.
+run order before shaping through SixLabors.Fonts. The resolver uses an embedded
+Unicode 16.0 `Bidi_Class`/`Bidi_Paired_Bracket` table and implements the
+corresponding UAX #9 rules, including overflow handling for explicit controls.
+Grapheme segmentation and line-breaking data remain responsibilities of the
+higher layout layer. Updating the Unicode data version is an internal
+data-table regeneration, not a public API change.
 
 ## Glyph-image requirements
 
@@ -137,23 +137,22 @@ The supported contract encodings are:
 
 Pixels are row-major from top to bottom and are always tightly packed. Their
 length is exactly `Width * Height * bytesPerPixel`. There is no public stride
-or row-pitch field. DeltaText performs any repacking needed by its native
-backend before returning the result.
+or row-pitch field. DeltaText returns this tightly packed managed payload
+directly; no native image buffer is involved.
 
 `PlaneBounds` maps the complete image, including the distance-field border, to
 baseline-relative device coordinates. Whitespace or another glyph with no
 visible image is represented by zero width, zero height and empty pixels; it
-does not require an atlas entry.
+does not require an atlas entry. Coverage, SDF, MSDF and color pixels are
+rasterized by DeltaText from outline data returned by SixLabors.Fonts.
 
 SDF and MSDF requests use `DistanceRange`. Atlas spacing is separate and is
 owned by the packer. Color requests include a palette index and foreground
-color. COLR/CPAL v0 layers are flattened by DeltaText so palette selection is
-deterministic. COLR v1 paint graphs and SVG-in-OpenType glyphs are rendered
-through the Skia color glyph backend using the original glyph ID; this
-preserves layered paints and embedded images when the packaged Skia runtime
-supports the format. If a native Skia build cannot evaluate a newer color
-format, DeltaText falls back to the foreground-colored outline and returns the
-same valid RGBA contract rather than failing or exposing native handles.
+color. Color layers exposed by SixLabors.Fonts are flattened by DeltaText so
+palette selection is deterministic. If a newer color format cannot be exposed
+as outline callbacks by the installed SixLabors.Fonts version, DeltaText uses
+the foreground-colored outline fallback and still returns the valid RGBA
+contract rather than exposing package objects or native handles.
 
 This v1 boundary supports arbitrary transformations of bitmap atlases. Direct
 access to vector outlines for a custom rasterizer would be a separate optional
@@ -297,13 +296,8 @@ The contract follows these durable parts of established APIs and standards:
   and [`GlyphInfo`](https://api-docs.avaloniaui.net/docs/T_Avalonia_Media_TextFormatting_GlyphInfo)
   for exact typeface identity, UTF-16 source mapping, bidi level, glyph ID,
   cluster, advance and offset;
-- [HarfBuzz buffers](https://harfbuzz.github.io/harfbuzz-hb-buffer.html)
-  for glyph positions, clusters and shaping-safety flags;
-- [HarfBuzz common types](https://harfbuzz.github.io/harfbuzz-hb-common.html)
-  for BCP 47 languages, ISO 15924 scripts and ranged feature values;
-- [Skia shaped text](https://skia.org/docs/dev/design/text_shaper/) and
-  [`SkTextBlobBuilder`](https://api.skia.org/classSkTextBlobBuilder.html) for
-  immutable runs of exact-font glyph IDs, positions and clusters;
+- [SixLabors.Fonts](https://github.com/SixLabors/Fonts) for managed font
+  loading, OpenType layout and glyph outline callbacks;
 - [OpenType 1.9.1](https://learn.microsoft.com/en-us/typography/opentype/spec/otff)
   for collections, variable fonts, vertical metrics and color glyph formats;
 - [Unicode 16](https://www.unicode.org/versions/Unicode16.0.0/),

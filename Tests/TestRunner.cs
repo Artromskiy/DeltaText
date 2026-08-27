@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Text.Json;
 
 using Delta.Text.Contract;
@@ -22,8 +21,6 @@ internal static class TestRunner
         ("paired brackets resolve without losing source ranges", BidiPairedBrackets),
         ("fallback produces font-specific runs", FontFallback),
         ("coverage, SDF and color images are unpacked", GlyphImages),
-        ("color font table parsing is defensive", ColorFontParsing),
-        ("modern color table detection is explicit", ModernColorTableDetection),
         ("managed MSDF is deterministic and channel-separated", ManagedMsdfGeneration),
         ("MSDF image is optional and renderer-neutral", MsdfImage),
         ("invalid requests are rejected", InvalidRequests),
@@ -311,62 +308,6 @@ internal static class TestRunner
         Check(!color.Pixels.Span.SequenceEqual(alternate.Pixels.Span), "foreground color was ignored");
     }
 
-    private static void ColorFontParsing()
-    {
-        var font = new byte[86];
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(4, 2), 2);
-        WriteTable(font, 12, "COLR", 44, 24);
-        WriteTable(font, 28, "CPAL", 68, 18);
-
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(44, 2), 0);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(46, 2), 1);
-        BinaryPrimitives.WriteUInt32BigEndian(font.AsSpan(48, 4), 14);
-        BinaryPrimitives.WriteUInt32BigEndian(font.AsSpan(52, 4), 20);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(56, 2), 1);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(58, 2), 36);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(60, 2), 0);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(62, 2), 1);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(64, 2), 37);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(66, 2), 0);
-
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(68, 2), 0);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(70, 2), 1);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(72, 2), 1);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(74, 2), 1);
-        BinaryPrimitives.WriteUInt32BigEndian(font.AsSpan(76, 4), 14);
-        BinaryPrimitives.WriteUInt16BigEndian(font.AsSpan(80, 2), 0);
-        font[82] = 3;
-        font[83] = 2;
-        font[84] = 1;
-        font[85] = 255;
-
-        var layers = ColorFont.GetLayers(font, 36, new ColorGlyphOptions(0, new Rgba32(9, 8, 7, 6)));
-        Check(layers.Length == 1 && layers[0].GlyphId == 37, "COLR layer record was not read");
-        Check(layers[0].Color == new Rgba32(1, 2, 3, 255), "CPAL BGRA color was not converted to RGBA");
-        font[66] = 0xff;
-        font[67] = 0xff;
-        var foreground = new Rgba32(9, 8, 7, 6);
-        layers = ColorFont.GetLayers(font, 36, new ColorGlyphOptions(0, foreground));
-        Check(layers.Length == 1 && layers[0].Color == foreground, "COLR foreground palette was not respected");
-        Check(!ColorFont.HasModernColorTables(font), "COLR version 0 was classified as a modern color table");
-        Check(ColorFont.GetLayers(new byte[12], 0, null).Length == 0, "truncated color tables were accepted");
-    }
-
-    private static void ModernColorTableDetection()
-    {
-        var colr = new byte[36];
-        BinaryPrimitives.WriteUInt16BigEndian(colr.AsSpan(4, 2), 1);
-        WriteTable(colr, 12, "COLR", 28, 2);
-        BinaryPrimitives.WriteUInt16BigEndian(colr.AsSpan(28, 2), 1);
-        Check(ColorFont.HasModernColorTables(colr), "COLR version 1 was not detected");
-
-        var svg = new byte[36];
-        BinaryPrimitives.WriteUInt16BigEndian(svg.AsSpan(4, 2), 1);
-        WriteTable(svg, 12, "SVG ", 28, 2);
-        Check(ColorFont.HasModernColorTables(svg), "OpenType SVG table was not detected");
-        Check(!ColorFont.HasModernColorTables(new byte[12]), "truncated modern color data was accepted");
-    }
-
     private static void InvalidRequests()
     {
         using var service = new HarfBuzzTextService();
@@ -386,10 +327,12 @@ internal static class TestRunner
             () => service.OpenFont(new FontOpenRequest(new FontSourceId(Guid.NewGuid()), validData, 0,
                 new[] { new FontVariation(OpenTypeTag.Auto, 1) })),
             "automatic variation axis was accepted");
-        var malformed = service.OpenFont(new FontOpenRequest(new FontSourceId(Guid.NewGuid()), new byte[] { 0, 1, 2 }, 0));
-        service.CloseFont(malformed);
-        var unknownFace = service.OpenFont(new FontOpenRequest(new FontSourceId(Guid.NewGuid()), validData, uint.MaxValue));
-        service.CloseFont(unknownFace);
+        AssertThrows<ArgumentException>(
+            () => service.OpenFont(new FontOpenRequest(new FontSourceId(Guid.NewGuid()), new byte[] { 0, 1, 2 }, 0)),
+            "malformed font data was accepted");
+        AssertThrows<ArgumentOutOfRangeException>(
+            () => service.OpenFont(new FontOpenRequest(new FontSourceId(Guid.NewGuid()), validData, uint.MaxValue)),
+            "unknown font face was accepted");
         AssertThrows<ArgumentOutOfRangeException>(
             () => service.GetFontMetrics(font, float.NaN),
             "NaN pixels-per-em was accepted");
@@ -620,17 +563,6 @@ internal static class TestRunner
 
     private static OpenTypeTag Tag(string tag)
         => new((uint)(tag[0] << 24 | tag[1] << 16 | tag[2] << 8 | tag[3]));
-
-    private static void WriteTable(byte[] font, int offset, string tag, int tableOffset, int tableLength)
-    {
-        for (var i = 0; i < 4; i++)
-        {
-            font[offset + i] = (byte)tag[i];
-        }
-
-        BinaryPrimitives.WriteUInt32BigEndian(font.AsSpan(offset + 8, 4), (uint)tableOffset);
-        BinaryPrimitives.WriteUInt32BigEndian(font.AsSpan(offset + 12, 4), (uint)tableLength);
-    }
 
     private static string LatinPath() => Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
     private static string ArabicPath() => Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSansArabic-Regular.ttf");

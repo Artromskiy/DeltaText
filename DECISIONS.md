@@ -7,16 +7,16 @@ project links.
 
 ## Managed MSDF backend
 
-The next MSDF backend will be implemented in managed C# and will consume the
-contours already extracted by HarfBuzz. HarfBuzz remains the font and outline
-source; it is not treated as an MSDF generator. The managed implementation is
-the only MSDF backend and therefore has the same behavior on every supported
-.NET platform.
+The MSDF backend is implemented in managed C# and consumes contours extracted
+through SixLabors.Fonts. SixLabors.Fonts remains the font and outline source; it
+is not treated as an MSDF generator. DeltaText owns the pixel buffer and the
+managed implementation is the only MSDF backend, so it has the same behavior
+on every supported .NET platform.
 
 The intended pipeline is:
 
 ```text
-HarfBuzz draw callbacks
+SixLabors.Fonts outline callbacks
     -> immutable glyph contour model
     -> normalized line/quadratic/cubic edges
     -> deterministic edge coloring
@@ -40,4 +40,4 @@ distance candidates in the pixel loop. Parallelism is a later
 measurement-driven step; correctness and deterministic output come first.
 
 The managed backend is internal and returns a tightly packed RGB8 `GlyphImage`
-representation. It has no C++ or native MSDF runtime dependency.
+representation. It has no ImageSharp, C++ or native MSDF runtime dependency.

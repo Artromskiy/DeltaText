@@ -2,8 +2,8 @@
 
 - Keep `Delta.Text.Contract.ITextService` as the only public producer entry
   point.
-- Keep deterministic managed MSDF coverage for HarfBuzz outlines and glyph
-  image generation on every supported .NET platform.
+- Keep deterministic managed MSDF coverage for SixLabors.Fonts outlines and
+  glyph image generation on every supported .NET platform.
 - If a producer-side cache is introduced later, keep its policy internal and
   key it by exact font instance, glyph ID, size, image mode and distance-field
   parameters.
