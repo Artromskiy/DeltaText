@@ -43,3 +43,8 @@ SixLabors.Fonts are flattened into the same owned RGBA image. If a format does
 not expose an outline through the package, the requested color image uses the
 documented foreground-outline fallback. MTSDF remains an explicitly
 unsupported representation.
+
+With the bundled SixLabors.Fonts 3.0.0 adapter, leave script and language at
+automatic inference. Globally enabled Boolean feature tags are supported;
+ranged features, feature values above one, explicit script/language selectors
+and non-default color palettes fail explicitly with `NotSupportedException`.

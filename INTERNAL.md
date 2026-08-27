@@ -6,8 +6,9 @@ This document is internal and is not a consumer API.
 `FontInstanceId` values to `FontFace` objects. `FontFace` owns a private copy of
 font bytes and the SixLabors.Fonts collection/face objects until `CloseFont` or
 service disposal. No package object or native handle crosses
-`Delta.Text.Contract`. `HarfBuzzTextService` is retained only as a source-level
-compatibility name that delegates to the SixLabors implementation.
+`Delta.Text.Contract`. The implementation entry point is
+`SixLaborsTextService`; no font-backend implementation type is part of the
+cross-project contract.
 
 SixLabors.Fonts performs OpenType layout, fallback selection and outline
 callbacks. Bidi formatting controls are removed from the layout metrics before
@@ -15,6 +16,16 @@ they are paired with renderer callbacks, because controls have source mapping
 but no rendered glyph. Fallback identity comes from each returned
 `GlyphMetrics.Font`, not from the enclosing text run. Shaping output is copied
 into contract-owned arrays.
+
+The adapter passes globally enabled Boolean feature tags to
+`TextOptions.FeatureTags` and maps `kern=0` to `KerningMode.None`. SixLabors
+3.0.0 has no public script/language selector, ranged feature API, arbitrary
+feature values or color-palette selector, so those requests are rejected at
+the boundary rather than being silently dropped.
+
+Safety metadata is derived conservatively from the source cluster shape:
+multi-scalar and combining clusters, plus Arabic joining contexts, receive
+`UnsafeToBreak | UnsafeToConcat`. No `SafeToInsertTatweel` claim is made.
 
 `OpenFont` owns one defensive copy of the caller's font bytes. Each successful
 `Shape` call creates a new run/glyph snapshot, and each successful image call

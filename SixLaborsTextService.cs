@@ -5,6 +5,7 @@ using SixTag = SixLabors.Fonts.Tables.AdvancedTypographic.Tag;
 using SixTextDirection = SixLabors.Fonts.TextDirection;
 using ContractFontMetrics = Delta.Text.Contract.FontMetrics;
 using ContractTextDirection = Delta.Text.Contract.TextDirection;
+using System.Globalization;
 
 namespace Delta.Text;
 
@@ -140,7 +141,14 @@ public class SixLaborsTextService : ITextService
                 // Vertical positioning offsets are not exposed separately by its public layout API.
                 var offsetY = 0f;
                 current.Add(
-                    new ShapedGlyph(captured.GlyphId, metric.StringIndex, advanceX, advanceY, offsetX, offsetY, GlyphSafety.None),
+                    new ShapedGlyph(
+                        captured.GlyphId,
+                        metric.StringIndex,
+                        advanceX,
+                        advanceY,
+                        offsetX,
+                        offsetY,
+                        ResolveGlyphSafety(text, metrics, i)),
                     metric.Bounds,
                     advanceX,
                     advanceY);
@@ -170,6 +178,12 @@ public class SixLaborsTextService : ITextService
         {
             ThrowIfDisposed();
             var face = GetFont(request.Font);
+            if (request.Mode == GlyphImageMode.Color && request.Color is { PaletteIndex: not 0 })
+            {
+                throw new NotSupportedException(
+                    "SixLabors.Fonts 3.0.0 exposes the default color palette only.");
+            }
+
             var colorSupport = request.Mode == GlyphImageMode.Color
                 ? ColorFontSupport.ColrV0 | ColorFontSupport.ColrV1 | ColorFontSupport.Svg
                 : ColorFontSupport.None;
@@ -248,12 +262,31 @@ public class SixLaborsTextService : ITextService
         FontFace[] fallback,
         in TextShapeRequest request)
     {
+        var kerningMode = KerningMode.Standard;
+        var tags = request.Features.Length == 0
+            ? null
+            : new List<SixTag>(request.Features.Length);
+        if (request.Features.Length > 0)
+        {
+            foreach (var feature in request.Features.Span)
+            {
+                if (feature.Tag.Value == KernTag)
+                {
+                    kerningMode = feature.Value == 0 ? KerningMode.None : KerningMode.Standard;
+                }
+                else if (feature.Value == 1)
+                {
+                    tags?.Add(new SixTag(feature.Tag.Value));
+                }
+            }
+        }
+
         var options = new TextOptions(primary)
         {
             Dpi = 72,
             TextDirection = ToSixDirection(request.Direction),
             TextBidiMode = TextBidiMode.Normal,
-            KerningMode = KerningMode.Standard,
+            KerningMode = kerningMode,
             ColorFontSupport = ColorFontSupport.None
         };
 
@@ -268,17 +301,8 @@ public class SixLaborsTextService : ITextService
             options.FallbackFontFamilies = families;
         }
 
-        if (request.Features.Length > 0)
+        if (tags is not null)
         {
-            var tags = new List<SixTag>(request.Features.Length);
-            foreach (var feature in request.Features.Span)
-            {
-                if (feature.Value != 0)
-                {
-                    tags.Add(new SixTag(feature.Tag.Value));
-                }
-            }
-
             options.FeatureTags = tags;
         }
 
@@ -369,6 +393,96 @@ public class SixLaborsTextService : ITextService
             BidiClass.Bn or BidiClass.Lre or BidiClass.Rle or BidiClass.Lro or BidiClass.Rlo
             or BidiClass.Pdf or BidiClass.Lri or BidiClass.Rli or BidiClass.Fsi or BidiClass.Pdi;
 
+    private static GlyphSafety ResolveGlyphSafety(
+        string text,
+        SixLabors.Fonts.GlyphMetrics[] metrics,
+        int index)
+    {
+        var start = metrics[index].StringIndex;
+        var end = text.Length;
+        var sharesCluster = false;
+        for (var i = 0; i < metrics.Length; i++)
+        {
+            if (i == index)
+            {
+                continue;
+            }
+
+            var next = metrics[i].StringIndex;
+            if (next == start)
+            {
+                sharesCluster = true;
+            }
+            else if (next > start)
+            {
+                end = Math.Min(end, next);
+            }
+        }
+
+        var source = text.AsSpan(start, end - start);
+        var requiresReshaping = sharesCluster
+            || CountSourceScalars(source) > 1
+            || ContainsCombiningMark(text, start, end)
+            || ContainsArabicJoiningContext(text, start, end);
+        return requiresReshaping
+            ? GlyphSafety.UnsafeToBreak | GlyphSafety.UnsafeToConcat
+            : GlyphSafety.None;
+    }
+
+    private static int CountSourceScalars(ReadOnlySpan<char> source)
+    {
+        var count = 0;
+        for (var i = 0; i < source.Length; i++)
+        {
+            if (!char.IsLowSurrogate(source[i]))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool ContainsCombiningMark(string text, int start, int end)
+    {
+        for (var i = start; i < end; i++)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(text, i);
+            if (category is UnicodeCategory.NonSpacingMark
+                or UnicodeCategory.SpacingCombiningMark
+                or UnicodeCategory.EnclosingMark)
+            {
+                return true;
+            }
+
+            if (char.IsHighSurrogate(text[i]))
+            {
+                i++;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsArabicJoiningContext(string text, int start, int end)
+    {
+        for (var i = start; i < end; i++)
+        {
+            var codePoint = char.ConvertToUtf32(text, i);
+            if (UnicodeBidiData.Get(codePoint) == BidiClass.Al)
+            {
+                return true;
+            }
+
+            if (char.IsHighSurrogate(text[i]) && i + 1 < end)
+            {
+                i++;
+            }
+        }
+
+        return false;
+    }
+
     private static SixTextDirection ToSixDirection(ContractTextDirection direction)
         => direction switch
         {
@@ -452,11 +566,13 @@ public class SixLaborsTextService : ITextService
             }
         }
 
-        ValidateRange(request.Text.Length, request.Features.Span);
         if (request.Language is not null && string.IsNullOrWhiteSpace(request.Language))
         {
             throw new ArgumentException("Language must be null or a non-empty BCP 47 tag.", nameof(request));
         }
+
+        ValidateRange(request.Text.Length, request.Features.Span);
+        ValidateBackendShapingOptions(request);
     }
 
     private static void ValidateGlyphImageRequest(in GlyphImageRequest request)
@@ -514,8 +630,46 @@ public class SixLaborsTextService : ITextService
         }
     }
 
+    private static void ValidateBackendShapingOptions(in TextShapeRequest request)
+    {
+        if (!request.Script.IsAuto)
+        {
+            throw new NotSupportedException(
+                "SixLabors.Fonts 3.0.0 selects script from Unicode data and has no explicit script override.");
+        }
+
+        if (request.Language is not null)
+        {
+            throw new NotSupportedException(
+                "SixLabors.Fonts 3.0.0 has no language-system selector for OpenType shaping.");
+        }
+
+        foreach (var feature in request.Features.Span)
+        {
+            if (feature.Range is not null)
+            {
+                throw new NotSupportedException(
+                    "SixLabors.Fonts 3.0.0 supports feature tags only for the complete text span.");
+            }
+
+            if (feature.Value > 1)
+            {
+                throw new NotSupportedException(
+                    "SixLabors.Fonts 3.0.0 supports only Boolean OpenType feature values.");
+            }
+
+            if (feature.Value == 0 && feature.Tag.Value != KernTag)
+            {
+                throw new NotSupportedException(
+                    "SixLabors.Fonts 3.0.0 cannot disable an arbitrary default OpenType feature.");
+            }
+        }
+    }
+
     private void ThrowIfDisposed()
         => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+
+    private const uint KernTag = 0x6B65726E;
 
     private sealed class RunBuilder
     {
@@ -587,9 +741,4 @@ public class SixLaborsTextService : ITextService
                 new TextBounds(_left, _top, Math.Max(_right, _advanceX), _bottom),
                 _glyphs.ToArray());
     }
-}
-
-/// <summary>Compatibility name retained for callers that used the previous implementation type.</summary>
-public sealed class HarfBuzzTextService : SixLaborsTextService
-{
 }

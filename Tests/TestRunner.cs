@@ -47,7 +47,7 @@ internal static class TestRunner
     private static void OpenFont()
     {
         var source = File.ReadAllBytes(LatinPath());
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var request = new FontOpenRequest(new FontSourceId(Guid.Parse("f6b70d83-6ab2-4b7b-9f28-7f6a5ecf69c1")), source, 0);
         var font = service.OpenFont(request);
         source[0] ^= 0xff;
@@ -58,7 +58,7 @@ internal static class TestRunner
 
     private static void LatinShaping()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "f6b70d83-6ab2-4b7b-9f28-7f6a5ecf69c1");
         var text = "office AV";
         var shaped = service.Shape(new TextShapeRequest(
@@ -67,11 +67,13 @@ internal static class TestRunner
             new[] { font },
             TextDirection.LeftToRight,
             default,
-            "en",
-            new[] { new OpenTypeFeature(Tag("liga"), 1), new OpenTypeFeature(Tag("kern"), 1) }));
+            Features: new[] { new OpenTypeFeature(Tag("liga"), 1), new OpenTypeFeature(Tag("kern"), 1) }));
         Check(shaped.Runs.Length == 1, "Latin text was split unexpectedly");
         Check(shaped.Runs.Span[0].Glyphs.Length < text.Length, "ligature shaping did not compact the glyph sequence");
         Check(shaped.Runs.Span[0].Glyphs.Span[0].ClusterUtf16 == 0, "first cluster is not anchored at zero");
+        Check(shaped.Runs.Span[0].Glyphs.Span.ToArray().Any(static glyph =>
+                (glyph.Safety & GlyphSafety.UnsafeToBreak) != 0),
+            "ligature safety was not reported");
     }
 
     private static void LatinUiSmokeFixture()
@@ -88,14 +90,13 @@ internal static class TestRunner
             throw new InvalidOperationException("Latin UI fixture has an invalid direction.");
         }
 
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "b67b3c06-4c70-4cc7-bf52-47e8b0adf16b");
         var shaped = service.Shape(new TextShapeRequest(
             text.AsMemory(),
             pixelsPerEm,
             new[] { font },
             direction,
-            Language: "en",
             Features: new[] { new OpenTypeFeature(Tag("liga"), 1), new OpenTypeFeature(Tag("kern"), 1) }));
         Check(shaped.TextLengthUtf16 == root.GetProperty("sourceLengthUtf16").GetInt32(), "Latin fixture source length changed");
         Check(shaped.Runs.Length == 1, "Latin fixture did not produce one run");
@@ -138,7 +139,7 @@ internal static class TestRunner
 
     private static void CyrillicAndCombining()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "a11e0e56-39c4-4486-9afc-0e5a8f15f87b");
         var cyrillic = service.Shape(new TextShapeRequest("Привет мир".AsMemory(), 24, new[] { font }, TextDirection.LeftToRight));
         Check(cyrillic.Runs.Length == 1 && cyrillic.Runs.Span[0].Glyphs.Length >= 9, "Cyrillic shaping failed");
@@ -147,21 +148,27 @@ internal static class TestRunner
         var combining = service.Shape(new TextShapeRequest("e\u0301".AsMemory(), 24, new[] { font }, TextDirection.LeftToRight));
         Check(combining.Runs.Length == 1 && combining.Runs.Span[0].Glyphs.Length > 0, "combining mark produced no output");
         Check(combining.Runs.Span[0].Glyphs.Span.ToArray().All(static glyph => glyph.ClusterUtf16 == 0), "combining mark split its cluster");
+        Check(combining.Runs.Span[0].Glyphs.Span.ToArray().Any(static glyph =>
+                (glyph.Safety & GlyphSafety.UnsafeToBreak) != 0),
+            "combining mark safety was not reported");
     }
 
     private static void ArabicShaping()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, ArabicPath(), "0c25a0f8-19cc-4841-bb8c-a9f9f8ea53d8");
         var shaped = service.Shape(new TextShapeRequest("سلام".AsMemory(), 28, new[] { font }, TextDirection.Auto));
         Check(shaped.Runs.Length == 1 && shaped.Runs.Span[0].Direction == TextDirection.RightToLeft, "Arabic direction was not resolved");
         Check(shaped.Runs.Span[0].BidiLevel % 2 == 1, "Arabic bidi level is not odd");
         Check(shaped.Runs.Span[0].Glyphs.Span.ToArray().All(static glyph => glyph.GlyphId != 0), "Arabic produced a missing glyph");
+        Check(shaped.Runs.Span[0].Glyphs.Span.ToArray().Any(static glyph =>
+                (glyph.Safety & GlyphSafety.UnsafeToConcat) != 0),
+            "Arabic joining safety was not reported");
     }
 
     private static void MixedBidirectionalText()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "9c87085b-0b86-4c8d-bf5f-8a31ca2485c2");
         var shaped = service.Shape(new TextShapeRequest("abc אבג 123".AsMemory(), 24, new[] { font }));
         Check(shaped.Runs.Length >= 3, "mixed bidi text was not split into visual directional runs");
@@ -173,7 +180,7 @@ internal static class TestRunner
 
     private static void FontFallback()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var latin = Open(service, LatinPath(), "4e71f35c-176c-4fdd-8973-8d1fd9ebd5d8");
         var arabic = Open(service, ArabicPath(), "f7a8aeb5-e315-45e9-8e5c-37f62de20ee6");
         var shaped = service.Shape(new TextShapeRequest("Aس".AsMemory(), 24, new[] { latin, arabic }));
@@ -184,7 +191,7 @@ internal static class TestRunner
 
     private static void BidiControls()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "1deefea5-197a-4d34-969d-f169ae2c09ee");
         var text = "A \u202Bאבג\u202C B";
         var shaped = service.Shape(new TextShapeRequest(text.AsMemory(), 24, new[] { font }));
@@ -198,7 +205,7 @@ internal static class TestRunner
 
     private static void BidiBoundaries()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "f5f2d6b7-1d0a-4f5b-89b7-c57d38fa4d23");
 
         var text = "Delta Editor.";
@@ -219,7 +226,7 @@ internal static class TestRunner
 
     private static void BidiNumbers()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "7c2a2b33-1614-47f7-a3bb-24fc427693f0");
         var shaped = service.Shape(new TextShapeRequest("אבג 123".AsMemory(), 24, new[] { font }));
         var runs = shaped.Runs.Span.ToArray();
@@ -269,7 +276,7 @@ internal static class TestRunner
 
     private static void GlyphImages()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "7f5d6f1f-c6a6-46b8-9d0e-5cc28bdf1bf7");
         var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), 32, new[] { font }));
         var glyph = shaped.Runs.Span[0].Glyphs.Span[0].GlyphId;
@@ -310,7 +317,7 @@ internal static class TestRunner
 
     private static void InvalidRequests()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "c5b55ba2-62e2-4cb4-8411-7f5af44e749c");
         var validData = File.ReadAllBytes(LatinPath());
         AssertThrows<ArgumentException>(
@@ -369,6 +376,32 @@ internal static class TestRunner
             () => service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, Features: new[] {
                 new OpenTypeFeature(Tag("liga"), 1, new TextRange(int.MinValue, int.MaxValue)) })),
             "underflowing feature range was accepted");
+        AssertThrows<NotSupportedException>(
+            () => service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, Language: "en")),
+            "explicit language was silently ignored");
+        AssertThrows<NotSupportedException>(
+            () => service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, Script: Tag("Latn"))),
+            "explicit script was silently ignored");
+        AssertThrows<NotSupportedException>(
+            () => service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, Features: new[] {
+                new OpenTypeFeature(Tag("liga"), 0) })),
+            "feature disable was silently ignored");
+        AssertThrows<NotSupportedException>(
+            () => service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, Features: new[] {
+                new OpenTypeFeature(Tag("liga"), 2) })),
+            "non-Boolean feature value was silently ignored");
+        AssertThrows<NotSupportedException>(
+            () => service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, Features: new[] {
+                new OpenTypeFeature(Tag("liga"), 1, new TextRange(0, 1)) })),
+            "ranged feature was silently ignored");
+        AssertThrows<NotSupportedException>(
+            () => service.GenerateGlyphImage(new GlyphImageRequest(
+                font,
+                1,
+                16,
+                GlyphImageMode.Color,
+                Color: new ColorGlyphOptions(1, new Rgba32(255, 255, 255, 255)))),
+            "non-default color palette was silently ignored");
         foreach (var direction in Enum.GetValues<TextDirection>())
         {
             var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), 16, new[] { font }, direction));
@@ -405,7 +438,7 @@ internal static class TestRunner
 
     private static void MsdfImage()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "e23b2cc5-ec9e-41d0-b75d-7fc71a1f71cb");
         var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), 32, new[] { font }));
         var image = service.GenerateGlyphImage(new GlyphImageRequest(
@@ -480,7 +513,7 @@ internal static class TestRunner
 
     private static void FontLifetime()
     {
-        var service = new HarfBuzzTextService();
+        var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "3c2d81dd-7343-4580-8b44-6ed7033bb704");
         service.CloseFont(font);
         AssertThrows<ArgumentException>(
@@ -494,14 +527,14 @@ internal static class TestRunner
 
     private static void RepeatedDisposeAndUnknownIds()
     {
-        var service = new HarfBuzzTextService();
+        var service = new SixLaborsTextService();
         service.Dispose();
         service.Dispose();
         AssertThrows<ObjectDisposedException>(
             () => service.CloseFont(new FontInstanceId(999, 1)),
             "close on a disposed service did not fail explicitly");
 
-        using var live = new HarfBuzzTextService();
+        using var live = new SixLaborsTextService();
         AssertThrows<ArgumentException>(
             () => live.CloseFont(new FontInstanceId(999, 1)),
             "unknown font id did not fail explicitly");
@@ -509,7 +542,7 @@ internal static class TestRunner
 
     private static void ConcurrentServiceAccess()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "d6e52f26-0a6a-4c5c-92c7-3a82b7ca7c1f");
         var failures = new System.Collections.Concurrent.ConcurrentBag<Exception>();
         Parallel.For(0, 16, _ =>
@@ -530,7 +563,7 @@ internal static class TestRunner
 
     private static void EmptyAndSurrogateBoundaries()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "1e44c96f-5d3d-4f29-888d-e1e5fef75a40");
         var empty = service.Shape(new TextShapeRequest(ReadOnlyMemory<char>.Empty, 20, new[] { font }));
         Check(empty.TextLengthUtf16 == 0 && empty.Runs.Length == 0, "empty text produced a phantom run");
@@ -544,7 +577,7 @@ internal static class TestRunner
 
     private static void IsolatesAndZeroGlyphOutput()
     {
-        using var service = new HarfBuzzTextService();
+        using var service = new SixLaborsTextService();
         var font = Open(service, LatinPath(), "c0db792f-4eb4-4c5f-a3c7-4c8efcde779a");
         var text = "A \u2067אבג\u2069 B";
         var shaped = service.Shape(new TextShapeRequest(text.AsMemory(), 20, new[] { font }));
@@ -555,7 +588,7 @@ internal static class TestRunner
         Check(emptyGlyph.Width >= 0 && emptyGlyph.Height >= 0 && emptyGlyph.Pixels.Length == emptyGlyph.Width * emptyGlyph.Height, "zero glyph image is malformed");
     }
 
-    private static FontInstanceId Open(HarfBuzzTextService service, string path, string sourceId)
+    private static FontInstanceId Open(SixLaborsTextService service, string path, string sourceId)
         => service.OpenFont(new FontOpenRequest(
             new FontSourceId(Guid.Parse(sourceId)),
             File.ReadAllBytes(path),
