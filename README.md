@@ -6,6 +6,9 @@ UTF-16 text and returns unpacked coverage/SDF/MSDF/color glyph images. The
 optional `CpuTextRenderer` composes those images into an owned RGBA8 bitmap for
 CPU previews and headless output.
 
+For repeated previews, shape once and call the `CpuTextRenderer.Render` overload
+that accepts `ShapedText`; the request overload is the one-shot convenience path.
+
 - User-facing API: [USER_API.md](USER_API.md)
 - Canonical contract: [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md)
 - Internal implementation notes: [INTERNAL.md](INTERNAL.md)

@@ -18,6 +18,16 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
     internal IReadOnlyList<CapturedGlyph> Glyphs => _glyphs;
 
+    internal void Reset()
+    {
+        _layers.Clear();
+        _glyphs.Clear();
+        _currentLayer = null;
+        _currentContour = null;
+        _currentGlyph = null;
+        _skipCurrentGlyph = false;
+    }
+
     public bool BeginGlyph(in FontRectangle bounds, in GlyphRendererParameters parameters)
     {
         _layers.Clear();

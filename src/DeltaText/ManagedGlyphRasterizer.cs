@@ -196,13 +196,26 @@ internal static class ManagedGlyphRasterizer
             {
                 var point = new float2(x + 0.5f, y + 0.5f);
                 var nearest = float.MaxValue;
+                var winding = 0;
                 for (var i = 0; i < geometry.Edges.Length; i++)
                 {
-                    nearest = DeltaMaths.Min(nearest, MsdfRasterizer.DistanceSquared(point, geometry.Edges[i].Start, geometry.Edges[i].End));
+                    var edge = geometry.Edges[i];
+                    nearest = DeltaMaths.Min(nearest, MsdfRasterizer.DistanceSquared(point, edge.Start, edge.End));
+                    if ((edge.Start.y <= point.y && edge.End.y > point.y)
+                        || (edge.Start.y > point.y && edge.End.y <= point.y))
+                    {
+                        var intersectionX = edge.Start.x
+                            + (point.y - edge.Start.y) * (edge.End.x - edge.Start.x)
+                            / (edge.End.y - edge.Start.y);
+                        if (intersectionX > point.x)
+                        {
+                            winding += edge.End.y > edge.Start.y ? 1 : -1;
+                        }
+                    }
                 }
 
                 var distance = DeltaMaths.Sqrt(nearest);
-                if (!MsdfRasterizer.IsInside(geometry.Edges, point))
+                if (winding == 0)
                 {
                     distance = -distance;
                 }

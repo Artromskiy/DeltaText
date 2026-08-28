@@ -435,6 +435,28 @@ internal static class TestRunner
         Check(coverage.Bounds.Width == coverage.Width && coverage.Bounds.Height == coverage.Height,
             "CPU coverage bounds do not describe the bitmap");
 
+        var shaped = service.Shape(request);
+        var retainedShape = renderer.Render(shaped, new CpuTextRenderOptions(
+            GlyphImageMode.Coverage,
+            0,
+            new Rgba32(255, 255, 255, 255)));
+        Check(retainedShape.Width == coverage.Width && retainedShape.Height == coverage.Height,
+            "retained shaped render changed the bitmap size");
+        Check(retainedShape.Pixels.Span.SequenceEqual(coverage.Pixels.Span),
+            "retained shaped render changed the bitmap pixels");
+
+        var glyphRequest = new GlyphImageRequest(
+            font,
+            shaped.Runs.Span[0].Glyphs.Span[0].GlyphId,
+            32,
+            GlyphImageMode.Coverage);
+        var repeatedCoverage = service.GenerateGlyphImage(glyphRequest);
+        var repeatedCoverageAgain = service.GenerateGlyphImage(glyphRequest);
+        Check(ReferenceEquals(repeatedCoverage, repeatedCoverageAgain),
+            "repeated glyph image request did not use the bounded cache");
+        Check(repeatedCoverage.Pixels.Span.SequenceEqual(repeatedCoverageAgain.Pixels.Span),
+            "cached glyph image changed between requests");
+
         var sdf = renderer.Render(request, new CpuTextRenderOptions(
             GlyphImageMode.Sdf,
             4,

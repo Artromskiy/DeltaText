@@ -72,13 +72,27 @@ public sealed class CpuTextRenderer
     /// <param name="options">Glyph representation, distance range and foreground color.</param>
     public CpuTextImage Render(in TextShapeRequest request, CpuTextRenderOptions options)
     {
-        // INCOMPLETE / OBSOLETE-CANDIDATE: this convenience path intentionally
-        // renders one owned bitmap and does not cache shaped runs or glyph
-        // images. Add an explicit reusable render plan/cache only after a
-        // measured preview or headless-export workload requires it.
+        // The output bitmap is intentionally new for every call. The text
+        // service owns the bounded glyph-image cache; shaped runs remain the
+        // caller's responsibility when a render loop needs to reuse them.
         ValidateOptions(options);
         var shaped = _textService.Shape(request);
-        var placements = CpuGlyphCollector.Collect(_textService, request, shaped, options);
+        return Render(shaped, options);
+    }
+
+    /// <summary>Renders an already shaped result without running shaping again.</summary>
+    /// <param name="shaped">Immutable shaped result retained by the caller.</param>
+    /// <param name="options">Glyph representation, distance range and foreground color.</param>
+    /// <remarks>
+    /// Use this overload when the text and shaping inputs are unchanged across
+    /// frames. The supplied <see cref="ITextService"/> and font instances must
+    /// remain open while this method loads glyph images.
+    /// </remarks>
+    public CpuTextImage Render(ShapedText shaped, CpuTextRenderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(shaped);
+        ValidateOptions(options);
+        var placements = CpuGlyphCollector.Collect(_textService, shaped, options);
         return CpuBitmapComposer.Compose(placements, options);
     }
 

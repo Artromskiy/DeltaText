@@ -7,11 +7,10 @@ internal static class CpuGlyphCollector
 {
     internal static List<PlacedGlyph> Collect(
         ITextService textService,
-        in TextShapeRequest request,
         ShapedText shaped,
         CpuTextRenderOptions options)
     {
-        var placements = new List<PlacedGlyph>();
+        var placements = new List<PlacedGlyph>(CountGlyphs(shaped));
         var pen = float2.zero;
         for (var runIndex = 0; runIndex < shaped.Runs.Length; runIndex++)
         {
@@ -24,7 +23,7 @@ internal static class CpuGlyphCollector
                     textService,
                     run.Font,
                     glyph.GlyphId,
-                    request.PixelsPerEm,
+                    run.PixelsPerEm,
                     options);
 
                 if (!image.IsEmpty)
@@ -41,5 +40,17 @@ internal static class CpuGlyphCollector
         }
 
         return placements;
+    }
+
+    private static int CountGlyphs(ShapedText shaped)
+    {
+        var count = 0;
+        var runs = shaped.Runs.Span;
+        for (var i = 0; i < runs.Length; i++)
+        {
+            count = checked(count + runs[i].Glyphs.Length);
+        }
+
+        return count;
     }
 }

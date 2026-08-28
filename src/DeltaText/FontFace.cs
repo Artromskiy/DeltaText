@@ -19,7 +19,13 @@ internal sealed class FontFace : IDisposable
     private readonly FontCollection _collection;
     private readonly FontFamily _family;
     private readonly SixFontVariation[] _variations;
+    private readonly Dictionary<float, SixFont> _fontsByPixelsPerEm = new();
+    private readonly Dictionary<int, float> _leftSideBearings = new();
     private readonly Dictionary<GlyphOutlineKey, GlyphOutline> _outlines = new();
+    private readonly Dictionary<GlyphImageCacheKey, GlyphImage> _glyphImages = new();
+    private readonly Queue<GlyphImageCacheKey> _glyphImageOrder = new();
+    private readonly SixLaborsGlyphRenderer _outlineRenderer = new();
+    private int _glyphImageBytes;
     private int _disposed;
 
     private FontFace(
@@ -71,17 +77,29 @@ internal sealed class FontFace : IDisposable
         }
     }
 
-    internal SixFont CreateFont(float pixelsPerEm)
+    internal SixFont GetOrCreateFont(float pixelsPerEm)
     {
         ThrowIfDisposed();
-        return _variations.Length == 0
+        if (_fontsByPixelsPerEm.TryGetValue(pixelsPerEm, out var font))
+        {
+            return font;
+        }
+
+        font = _variations.Length == 0
             ? _family.CreateFont(pixelsPerEm)
             : _family.CreateFont(pixelsPerEm, _variations);
+        _fontsByPixelsPerEm.Add(pixelsPerEm, font);
+        return font;
     }
 
     internal bool TryGetLeftSideBearing(SixFont font, CodePoint codepoint, out float left)
     {
         ThrowIfDisposed();
+        if (_leftSideBearings.TryGetValue(codepoint.Value, out left))
+        {
+            return true;
+        }
+
         if (!font.TryGetGlyph(
                 codepoint,
                 TextAttributes.None,
@@ -95,6 +113,7 @@ internal sealed class FontFace : IDisposable
         }
 
         left = value.GlyphMetrics.LeftSideBearing;
+        _leftSideBearings[codepoint.Value] = left;
         return true;
     }
 
@@ -115,6 +134,49 @@ internal sealed class FontFace : IDisposable
         _outlines[new GlyphOutlineKey(glyphId, pixelsPerEm, support)] = outline;
     }
 
+    internal bool TryGetCachedGlyphImage(
+        in GlyphImageCacheKey key,
+        [NotNullWhen(true)] out GlyphImage? image)
+    {
+        ThrowIfDisposed();
+        return _glyphImages.TryGetValue(key, out image);
+    }
+
+    internal void CacheGlyphImage(in GlyphImageCacheKey key, GlyphImage image)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(image);
+        var size = image.Pixels.Length;
+        if (size > MaxCachedGlyphImageBytes)
+        {
+            return;
+        }
+
+        if (_glyphImages.ContainsKey(key))
+        {
+            return;
+        }
+
+        while (_glyphImages.Count >= MaxCachedGlyphImages
+            || _glyphImageBytes > MaxCachedGlyphImageBytes - size)
+        {
+            if (_glyphImageOrder.Count == 0)
+            {
+                break;
+            }
+
+            var evictedKey = _glyphImageOrder.Dequeue();
+            if (_glyphImages.Remove(evictedKey, out var evicted))
+            {
+                _glyphImageBytes -= evicted.Pixels.Length;
+            }
+        }
+
+        _glyphImages.Add(key, image);
+        _glyphImageOrder.Enqueue(key);
+        _glyphImageBytes += size;
+    }
+
     internal bool TryCreateOutline(
         float pixelsPerEm,
         uint glyphId,
@@ -127,62 +189,58 @@ internal sealed class FontFace : IDisposable
             return true;
         }
 
-        // INCOMPLETE / OBSOLETE-CANDIDATE: the fallback lookup scans every
-        // available code point to recover a glyph by ID. Replace it with a
-        // direct glyph-ID outline API or a bounded per-face glyph index before
-        // using this path as a high-volume production cache warmer.
-        var font = CreateFont(pixelsPerEm);
-        var codepoints = Metrics.GetAvailableCodePoints().Span;
-        for (var i = 0; i < codepoints.Length; i++)
+        if (glyphId > ushort.MaxValue
+            || !Metrics.TryGetGlyphMetrics(
+                (ushort)glyphId,
+                TextAttributes.None,
+                TextDecorations.None,
+                LayoutMode.HorizontalTopBottom,
+                support,
+                null,
+                out _))
         {
-            if (!font.TryGetGlyph(codepoints[i], TextAttributes.None, LayoutMode.HorizontalTopBottom, ColorFontSupport.None, out var glyph)
-                || glyph is not { } value
-                || value.GlyphMetrics.GlyphId != glyphId)
-            {
-                continue;
-            }
-
-            var collector = new SixLaborsGlyphRenderer();
-            var codepointText = codepoints[i].ToString();
-            var options = new TextOptions(font)
-            {
-                Dpi = 72,
-                TextDirection = SixLabors.Fonts.TextDirection.LeftToRight,
-                ColorFontSupport = support
-            };
-            new TextRenderer(collector).Render(codepointText, options);
-            if (collector.Glyphs.Count == 0 || collector.Glyphs[0].GlyphId != glyphId
-                || collector.Glyphs[0].Outline is not { } captured)
-            {
-                continue;
-            }
-
-            var metrics = TextMeasurer.GetGlyphMetrics(codepointText, options);
-            if (metrics.Length == 0)
-            {
-                continue;
-            }
-
-            captured.Translate(
-                -metrics.Span[0].Advance.X,
-                -metrics.Span[0].Advance.Y - GetBaselineOffset(pixelsPerEm));
-            outline = captured;
-            if (outline is not null)
-            {
-                CacheOutline(pixelsPerEm, glyphId, support, outline);
-                return true;
-            }
+            outline = null;
+            return false;
         }
 
-        outline = null;
-        return false;
+        var font = GetOrCreateFont(pixelsPerEm);
+        _outlineRenderer.Reset();
+        var options = new GlyphOptions
+        {
+            Font = font,
+            Dpi = SixLaborsAdapterConstants.LayoutDpi,
+            LayoutMode = LayoutMode.HorizontalTopBottom,
+            ColorFontSupport = support,
+            TextBaseline = TextBaseline.LineBox,
+            GraphemeIndex = 0
+        };
+        new TextRenderer(_outlineRenderer).Render((ushort)glyphId, options);
+        if (_outlineRenderer.Glyphs.Count == 0 || _outlineRenderer.Glyphs[0].GlyphId != glyphId
+            || _outlineRenderer.Glyphs[0].Outline is not { } captured)
+        {
+            outline = null;
+            return false;
+        }
+
+        var renderedMetrics = TextMeasurer.GetGlyphMetrics((ushort)glyphId, options);
+        captured.Translate(
+            -renderedMetrics.Advance.X,
+            -renderedMetrics.Advance.Y - GetBaselineOffset(pixelsPerEm));
+        outline = captured;
+        CacheOutline(pixelsPerEm, glyphId, support, outline);
+        return true;
     }
 
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
+            _fontsByPixelsPerEm.Clear();
+            _leftSideBearings.Clear();
             _outlines.Clear();
+            _glyphImages.Clear();
+            _glyphImageOrder.Clear();
+            _glyphImageBytes = 0;
             _fontStream.Dispose();
         }
 
@@ -245,6 +303,16 @@ internal sealed class FontFace : IDisposable
 
     private void ThrowIfDisposed()
         => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+
+    private const int MaxCachedGlyphImages = 256;
+    private const int MaxCachedGlyphImageBytes = 8 * 1024 * 1024;
 }
 
 internal readonly record struct GlyphOutlineKey(uint GlyphId, float PixelsPerEm, ColorFontSupport Support);
+
+internal readonly record struct GlyphImageCacheKey(
+    uint GlyphId,
+    float PixelsPerEm,
+    GlyphImageMode Mode,
+    float DistanceRange,
+    ColorGlyphOptions? Color);

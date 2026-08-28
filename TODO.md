@@ -4,9 +4,9 @@
   point.
 - Keep deterministic managed MSDF coverage for SixLabors.Fonts outlines and
   glyph image generation on every supported .NET platform.
-- If a producer-side cache is introduced later, keep its policy internal and
-  key it by exact font instance, glyph ID, size, image mode and distance-field
-  parameters.
+- Keep the producer-side glyph-image cache bounded and internal; key it by
+  exact font instance, glyph ID, size, image mode, color and distance-field
+  parameters. Revisit its limits only with representative measurements.
 - Expand deterministic glyph-image fixture coverage to Latin/Cyrillic/Arabic,
   combining marks, ligatures, sharp corners and two DPI scales for DeltaRender.
 - Keep MTSDF outside the current v1 capability set. Any future extension must

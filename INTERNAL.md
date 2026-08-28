@@ -38,10 +38,17 @@ owned snapshots with UTF-16 offsets. Official Unicode 17 corpus checks live in
 cases. Width-aware line construction is intentionally not part of this layer.
 
 `OpenFont` owns one defensive copy of the caller's font bytes. Each successful
-`Shape` call creates a new run/glyph snapshot, and each successful image call
-creates a new pixel snapshot; these are deliberate boundary allocations, not
-service-owned reusable buffers. No mutable list, pinned managed array or native
-pixel allocation is exposed to a consumer.
+`Shape` call creates a new run/glyph snapshot. SixLabors `Font` objects are
+cached per face and pixel size, and the service keeps a deterministic FIFO
+glyph-image cache per face (up to 256 entries and 8 MiB). Cached images are
+immutable contract objects and are safe to share between repeated requests;
+the cache is cleared when the face closes. No mutable list, pinned managed
+array or native pixel allocation is exposed to a consumer.
+
+`CpuTextRenderer.Render(ShapedText, ...)` is the explicit no-reshaping path
+for preview or UI loops that retain a shaped result. The request overload is a
+convenience operation and still shapes on every call; callers should retain
+`ShapedText` when its input and shaping options are unchanged.
 
 Coverage, SDF, MSDF and color rasterization are all managed. MSDF consumes the
 SixLabors.Fonts outline callbacks, flattens curves to a bounded pixel tolerance
@@ -83,10 +90,10 @@ contract has a replacement.
 |---|---|---|
 | `BidiResolver` | The managed data-driven resolver passes all 91,707 Unicode 17 `BidiCharacterTest` cases through L2. The corpus does not cover UAX #9 L3/L4 line-layout rules. | Keep the corpus fixture/command in the conformance loop; add separate line-layout evidence before making an L3/L4 claim. |
 | `SixLaborsTextService` direction/feature adapter | The DeltaText SixLabors.Fonts fork adapter does not map all contract fields. Vertical direction is currently collapsed to backend `Auto`; unsupported script, language, ranged and valued feature requests are rejected. | Add explicit backend mappings or keep these requests rejected; never silently discard direction or feature semantics. |
-| `FontFace.TryCreateOutline` | A cache miss scans available code points to recover a glyph outline by glyph ID. | Use a direct glyph-ID outline operation or build a bounded per-face glyph index. |
+| `FontFace.TryCreateOutline` | Direct glyph-ID metrics and rendering depend on the pinned SixLabors fork's glyph-id API. | Keep the fork API covered by the direct-glyph regression fixture when upgrading the package. |
 | `ManagedGlyphRasterizer.RenderColor` | Color output is flattened through outline layers and falls back to a foreground-colored outline for unsupported formats. | Add full COLR v1/SVG paint traversal, transforms and palette handling when the managed backend exposes them safely. |
 | `MsdfGeometry` / `MsdfRasterizer` | Edge coloring, grid broad phase and distance evaluation are deterministic baseline implementations. | Add measured corner-quality and difficult-contour coverage, then optimize only against a representative workload. |
-| `CpuTextRenderer` | The convenience API creates one owned bitmap and deliberately has no reusable shaping/glyph cache or atlas ownership. | Add a reusable render plan/cache only with a measured preview or headless-export workload. |
+| `CpuTextRenderer` | The request overload creates one owned bitmap and deliberately does not retain shaping state. | Use the `Render(ShapedText, ...)` overload for unchanged text; atlas/cache ownership remains outside DeltaText. |
 
 Do not mark the frozen `Delta.Text.Contract` or the live
 `SixLaborsTextService` producer as obsolete until a compatible replacement is

@@ -3,10 +3,12 @@ using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
 using SixTag = SixLabors.Fonts.Tables.AdvancedTypographic.Tag;
 using SixTextDirection = SixLabors.Fonts.TextDirection;
+using SixFont = SixLabors.Fonts.Font;
 using ContractFontMetrics = Delta.Text.Contract.FontMetrics;
 using ContractShapedGlyph = Delta.Text.Contract.ShapedGlyph;
 using ContractTextDirection = Delta.Text.Contract.TextDirection;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace Delta.Text;
 
@@ -15,6 +17,7 @@ public class SixLaborsTextService : ITextService
 {
     private readonly object _gate = new();
     private readonly Dictionary<FontInstanceId, FontFace> _fonts = new();
+    private readonly SixLaborsGlyphRenderer _glyphRenderer = new();
     private ulong _nextFontValue = 1;
     private int _disposed;
 
@@ -80,33 +83,38 @@ public class SixLaborsTextService : ITextService
         {
             ThrowIfDisposed();
             ValidateFallback(request.FontFallback.Span);
-            var fallback = ResolveFallback(request.FontFallback.Span);
-            var text = request.Text.ToString();
+            var text = GetText(request.Text);
+            var fallback = ResolveFallback(request.FontFallback.Span, request.PixelsPerEm);
             if (text.Length == 0)
             {
                 return new ShapedText(0, Array.Empty<ShapedRun>());
             }
 
-            var primary = fallback[0].CreateFont(request.PixelsPerEm);
+            var primary = fallback[0].Font;
             var options = CreateTextOptions(primary, fallback, request);
-            var metrics = FilterFormattingMetrics(TextMeasurer.GetGlyphMetrics(text, options));
-            var renderer = new SixLaborsGlyphRenderer();
-            new TextRenderer(renderer).Render(text, options);
-            if (metrics.Length != renderer.Glyphs.Count)
+            var metrics = FilterFormattingMetrics(TextMeasurer.GetGlyphMetrics(request.Text.Span, options));
+            _glyphRenderer.Reset();
+            new TextRenderer(_glyphRenderer).Render(request.Text.Span, options);
+            if (metrics.Length != _glyphRenderer.Glyphs.Count)
             {
                 throw new InvalidOperationException(
-                    $"SixLabors returned inconsistent glyph layout and renderer output ({metrics.Length} metrics, {renderer.Glyphs.Count} glyphs).");
+                    $"SixLabors returned inconsistent glyph layout and renderer output ({metrics.Length} metrics, {_glyphRenderer.Glyphs.Count} glyphs).");
             }
 
             var bidiRuns = BidiResolver.Resolve(text, request.Direction);
+            var bidiRunMap = BuildBidiRunMap(bidiRuns, text.Length);
+            var glyphSafety = ResolveGlyphSafety(text, metrics);
             var result = new List<ShapedRun>(bidiRuns.Length);
             var current = new RunBuilder();
+            var metricSpan = metrics.Span;
             for (var i = 0; i < metrics.Length; i++)
             {
-                var metric = metrics[i];
-                var captured = renderer.Glyphs[i];
-                var faceId = FindFontId(metric.Font.Family);
-                var bidi = FindBidiRun(bidiRuns, metric.StringIndex);
+                var metric = metricSpan[i];
+                var captured = _glyphRenderer.Glyphs[i];
+                var fontIndex = FindFontIndex(fallback, metric.Font.Family);
+                var resolvedFont = fallback[fontIndex];
+                var faceId = resolvedFont.Id;
+                var bidi = FindBidiRun(bidiRuns, bidiRunMap, metric.StringIndex);
                 if (current.HasGlyphs && (current.Font != faceId || current.BidiLevel != bidi.Level
                         || current.Direction != bidi.Direction))
                 {
@@ -126,10 +134,9 @@ public class SixLaborsTextService : ITextService
                     advanceX = metric.Advance.Width;
                 }
 
-                var glyphFace = GetFont(faceId);
-                var glyphFont = glyphFace.CreateFont(request.PixelsPerEm);
+                var glyphFace = resolvedFont.Face;
                 var offsetX = metric.Bounds.X - metric.Advance.X;
-                if (glyphFace.TryGetLeftSideBearing(glyphFont, metric.CodePoint, out var leftBearing))
+                if (glyphFace.TryGetLeftSideBearing(resolvedFont.Font, metric.CodePoint, out var leftBearing))
                 {
                     offsetX -= leftBearing * request.PixelsPerEm / glyphFace.UnitsPerEm;
                 }
@@ -151,7 +158,7 @@ public class SixLaborsTextService : ITextService
                         advanceY,
                         offsetX,
                         offsetY,
-                        ResolveGlyphSafety(text, metrics, i)),
+                        glyphSafety[i]),
                     metric.Bounds,
                     advanceX,
                     advanceY,
@@ -162,8 +169,7 @@ public class SixLaborsTextService : ITextService
                     captured.Outline.Translate(
                         -metric.Advance.X,
                         -metric.Advance.Y - baselineOffset);
-                    var face = GetFont(faceId);
-                    face.CacheOutline(request.PixelsPerEm, captured.GlyphId, ColorFontSupport.None, captured.Outline);
+                    glyphFace.CacheOutline(request.PixelsPerEm, captured.GlyphId, ColorFontSupport.None, captured.Outline);
                 }
             }
 
@@ -188,6 +194,17 @@ public class SixLaborsTextService : ITextService
             {
                 throw new NotSupportedException(
                     "The DeltaText SixLabors.Fonts fork build exposes the default color palette only.");
+            }
+
+            var cacheKey = new GlyphImageCacheKey(
+                request.GlyphId,
+                request.PixelsPerEm,
+                request.Mode,
+                request.DistanceRange,
+                request.Color);
+            if (face.TryGetCachedGlyphImage(cacheKey, out var cachedImage))
+            {
+                return cachedImage;
             }
 
             var colorSupport = request.Mode == GlyphImageMode.Color
@@ -217,10 +234,12 @@ public class SixLaborsTextService : ITextService
 
             if (!hasOutline || outline is null)
             {
-                return EmptyImage(request);
+                var empty = EmptyImage(request);
+                face.CacheGlyphImage(cacheKey, empty);
+                return empty;
             }
 
-            return ManagedGlyphRasterizer.Render(
+            var image = ManagedGlyphRasterizer.Render(
                 request.Font,
                 request.GlyphId,
                 request.PixelsPerEm,
@@ -228,6 +247,8 @@ public class SixLaborsTextService : ITextService
                 request.DistanceRange,
                 outline,
                 request.Color?.Foreground ?? new Rgba32(255, 255, 255, 255));
+            face.CacheGlyphImage(cacheKey, image);
+            return image;
         }
     }
 
@@ -264,8 +285,8 @@ public class SixLaborsTextService : ITextService
     }
 
     private static TextOptions CreateTextOptions(
-        SixLabors.Fonts.Font primary,
-        FontFace[] fallback,
+        SixFont primary,
+        ResolvedFont[] fallback,
         in TextShapeRequest request)
     {
         var kerningMode = KerningMode.Standard;
@@ -294,7 +315,7 @@ public class SixLaborsTextService : ITextService
         // them.
         var options = new TextOptions(primary)
         {
-            Dpi = 72,
+            Dpi = SixLaborsAdapterConstants.LayoutDpi,
             TextDirection = ToSixDirection(request.Direction),
             TextBidiMode = TextBidiMode.Normal,
             KerningMode = kerningMode,
@@ -306,7 +327,7 @@ public class SixLaborsTextService : ITextService
             var families = new FontFamily[fallback.Length - 1];
             for (var i = 1; i < fallback.Length; i++)
             {
-                families[i - 1] = fallback[i].Family;
+                families[i - 1] = fallback[i].Face.Family;
             }
 
             options.FallbackFontFamilies = families;
@@ -320,12 +341,13 @@ public class SixLaborsTextService : ITextService
         return options;
     }
 
-    private FontFace[] ResolveFallback(ReadOnlySpan<FontInstanceId> ids)
+    private ResolvedFont[] ResolveFallback(ReadOnlySpan<FontInstanceId> ids, float pixelsPerEm)
     {
-        var result = new FontFace[ids.Length];
+        var result = new ResolvedFont[ids.Length];
         for (var i = 0; i < ids.Length; i++)
         {
-            result[i] = GetFont(ids[i]);
+            var face = GetFont(ids[i]);
+            result[i] = new ResolvedFont(ids[i], face, face.GetOrCreateFont(pixelsPerEm));
         }
 
         return result;
@@ -342,13 +364,13 @@ public class SixLaborsTextService : ITextService
         }
     }
 
-    private FontInstanceId FindFontId(FontFamily family)
+    private static int FindFontIndex(ResolvedFont[] fonts, FontFamily family)
     {
-        foreach (var pair in _fonts)
+        for (var i = 0; i < fonts.Length; i++)
         {
-            if (pair.Value.Family.Equals(family))
+            if (fonts[i].Face.Family.Equals(family))
             {
-                return pair.Key;
+                return i;
             }
         }
 
@@ -360,42 +382,71 @@ public class SixLaborsTextService : ITextService
             ? face
             : throw new ArgumentException($"Font instance {id} is not open.", nameof(id));
 
-    private static BidiRun FindBidiRun(BidiRun[] runs, int cluster)
+    private static BidiRun FindBidiRun(BidiRun[] runs, int[] runMap, int cluster)
     {
-        for (var i = 0; i < runs.Length; i++)
+        if ((uint)cluster < (uint)runMap.Length)
         {
-            if (cluster >= runs[i].Start && cluster < runs[i].Start + runs[i].Length)
+            var runIndex = runMap[cluster];
+            if (runIndex >= 0)
             {
-                return runs[i];
+                return runs[runIndex];
             }
         }
 
         return runs.Length == 0 ? new BidiRun(0, 0, 0, ContractTextDirection.LeftToRight) : runs[^1];
     }
 
-    private static bool IsVertical(ContractTextDirection direction)
-        => direction is ContractTextDirection.TopToBottom or ContractTextDirection.BottomToTop;
-
-    private static SixLabors.Fonts.GlyphMetrics[] FilterFormattingMetrics(
-        ReadOnlyMemory<SixLabors.Fonts.GlyphMetrics> metrics)
+    private static int[] BuildBidiRunMap(BidiRun[] runs, int textLength)
     {
-        var filtered = new SixLabors.Fonts.GlyphMetrics[metrics.Length];
-        var count = 0;
-        for (var i = 0; i < metrics.Length; i++)
+        var map = new int[textLength];
+        Array.Fill(map, -1);
+        for (var i = 0; i < runs.Length; i++)
         {
-            var metric = metrics.Span[i];
-            if (!IsBidiFormatting(metric.CodePoint.Value))
+            var start = Math.Max(0, runs[i].Start);
+            var end = Math.Min(textLength, checked(runs[i].Start + runs[i].Length));
+            for (var index = start; index < end; index++)
             {
-                filtered[count++] = metric;
+                if (map[index] < 0)
+                {
+                    map[index] = i;
+                }
             }
         }
 
-        if (count == filtered.Length)
+        return map;
+    }
+
+    private static bool IsVertical(ContractTextDirection direction)
+        => direction is ContractTextDirection.TopToBottom or ContractTextDirection.BottomToTop;
+
+    private static ReadOnlyMemory<SixLabors.Fonts.GlyphMetrics> FilterFormattingMetrics(
+        ReadOnlyMemory<SixLabors.Fonts.GlyphMetrics> metrics)
+    {
+        var span = metrics.Span;
+        var formattingCount = 0;
+        for (var i = 0; i < metrics.Length; i++)
         {
-            return filtered;
+            if (IsBidiFormatting(span[i].CodePoint.Value))
+            {
+                formattingCount++;
+            }
         }
 
-        Array.Resize(ref filtered, count);
+        if (formattingCount == 0)
+        {
+            return metrics;
+        }
+
+        var filtered = new SixLabors.Fonts.GlyphMetrics[metrics.Length - formattingCount];
+        var count = 0;
+        for (var i = 0; i < span.Length; i++)
+        {
+            if (!IsBidiFormatting(span[i].CodePoint.Value))
+            {
+                filtered[count++] = span[i];
+            }
+        }
+
         return filtered;
     }
 
@@ -404,40 +455,59 @@ public class SixLaborsTextService : ITextService
             BidiClass.Bn or BidiClass.Lre or BidiClass.Rle or BidiClass.Lro or BidiClass.Rlo
             or BidiClass.Pdf or BidiClass.Lri or BidiClass.Rli or BidiClass.Fsi or BidiClass.Pdi;
 
-    private static GlyphSafety ResolveGlyphSafety(
+    private static GlyphSafety[] ResolveGlyphSafety(
         string text,
-        SixLabors.Fonts.GlyphMetrics[] metrics,
-        int index)
+        ReadOnlyMemory<SixLabors.Fonts.GlyphMetrics> metrics)
     {
-        var start = metrics[index].StringIndex;
-        var end = text.Length;
-        var sharesCluster = false;
-        for (var i = 0; i < metrics.Length; i++)
+        var metricSpan = metrics.Span;
+        if (metricSpan.Length == 0)
         {
-            if (i == index)
-            {
-                continue;
-            }
-
-            var next = metrics[i].StringIndex;
-            if (next == start)
-            {
-                sharesCluster = true;
-            }
-            else if (next > start)
-            {
-                end = Math.Min(end, next);
-            }
+            return Array.Empty<GlyphSafety>();
         }
 
-        var source = text.AsSpan(start, end - start);
-        var requiresReshaping = sharesCluster
-            || CountSourceScalars(source) > 1
-            || ContainsCombiningMark(text, start, end)
-            || ContainsArabicJoiningContext(text, start, end);
-        return requiresReshaping
-            ? GlyphSafety.UnsafeToBreak | GlyphSafety.UnsafeToConcat
-            : GlyphSafety.None;
+        var clusterIndices = new Dictionary<int, int>(metricSpan.Length);
+        var clusterStarts = new int[metricSpan.Length];
+        var clusterCounts = new int[metricSpan.Length];
+        var clusterCount = 0;
+        var metricClusterIndices = new int[metricSpan.Length];
+        for (var i = 0; i < metricSpan.Length; i++)
+        {
+            var start = metricSpan[i].StringIndex;
+            if (!clusterIndices.TryGetValue(start, out var clusterIndex))
+            {
+                clusterIndex = clusterCount++;
+                clusterIndices.Add(start, clusterIndex);
+                clusterStarts[clusterIndex] = start;
+            }
+
+            clusterCounts[clusterIndex]++;
+            metricClusterIndices[i] = clusterIndex;
+        }
+
+        Array.Sort(clusterStarts, 0, clusterCount);
+        var safetyByCluster = new GlyphSafety[clusterCount];
+        for (var i = 0; i < clusterCount; i++)
+        {
+            var start = clusterStarts[i];
+            var end = i + 1 < clusterCount ? clusterStarts[i + 1] : text.Length;
+            var clusterIndex = clusterIndices[start];
+            var source = text.AsSpan(start, end - start);
+            var requiresReshaping = clusterCounts[clusterIndex] > 1
+                || CountSourceScalars(source) > 1
+                || ContainsCombiningMark(text, start, end)
+                || ContainsArabicJoiningContext(text, start, end);
+            safetyByCluster[clusterIndex] = requiresReshaping
+                ? GlyphSafety.UnsafeToBreak | GlyphSafety.UnsafeToConcat
+                : GlyphSafety.None;
+        }
+
+        var result = new GlyphSafety[metricSpan.Length];
+        for (var i = 0; i < result.Length; i++)
+        {
+            result[i] = safetyByCluster[metricClusterIndices[i]];
+        }
+
+        return result;
     }
 
     private static int CountSourceScalars(ReadOnlySpan<char> source)
@@ -684,6 +754,32 @@ public class SixLaborsTextService : ITextService
         => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     private const uint KernTag = 0x6B65726E;
+
+    private static string GetText(ReadOnlyMemory<char> source)
+    {
+        if (MemoryMarshal.TryGetString(source, out var text, out var start, out var length)
+            && start == 0
+            && length == text.Length)
+        {
+            return text;
+        }
+
+        return source.ToString();
+    }
+
+    private readonly struct ResolvedFont
+    {
+        internal ResolvedFont(FontInstanceId id, FontFace face, SixFont font)
+        {
+            Id = id;
+            Face = face;
+            Font = font;
+        }
+
+        internal FontInstanceId Id { get; }
+        internal FontFace Face { get; }
+        internal SixFont Font { get; }
+    }
 
     private sealed class RunBuilder
     {

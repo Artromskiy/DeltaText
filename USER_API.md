@@ -49,6 +49,17 @@ var bitmap = cpu.Render(
         new Rgba32(240, 240, 240, 255)));
 ```
 
+When the text and shaping inputs do not change, retain the `ShapedText` result
+and render it without shaping again:
+
+```csharp
+var shaped = text.Shape(request);
+var bitmap = cpu.Render(shaped, new CpuTextRenderOptions(
+    GlyphImageMode.Coverage,
+    0,
+    new Rgba32(240, 240, 240, 255)));
+```
+
 `CpuTextImage.Pixels` is an owned, tightly packed, top-to-bottom premultiplied
 RGBA8 snapshot. `CpuTextImage.Bounds` is relative to the text baseline and
 describes the returned bitmap; transparent pixels outside glyphs are included
