@@ -1,0 +1,25 @@
+{
+  "unicodeVersion": "17.0.0",
+  "fonts": [
+    {
+      "name": "Doto",
+      "path": "Fonts/Doto.ttf",
+      "sha256": "12aadc8d9b95025d6d135af4ac58ef3fe98c1bdfab306ac762afae912f7b92b2",
+      "license": "OFL-1.1",
+      "licenseFile": "Fonts/Doto-OFL.txt",
+      "source": "https://fonts.google.com/specimen/Doto",
+      "text": "Doto",
+      "pixelsPerEm": [64, 128]
+    },
+    {
+      "name": "Luckiest Guy",
+      "path": "Fonts/LuckiestGuy-Regular.ttf",
+      "sha256": "bde64ad70289579762149264eeaad6f2bf19b542eca5d62ca9fb0d9cb04a47b2",
+      "license": "OFL-1.1",
+      "licenseFile": "https://scripts.sil.org/OFL",
+      "source": "https://fonts.google.com/specimen/Luckiest+Guy",
+      "text": "Luckiest Guy",
+      "pixelsPerEm": [48, 96]
+    }
+  ]
+}

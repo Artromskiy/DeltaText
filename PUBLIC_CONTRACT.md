@@ -1,4 +1,4 @@
-# DeltaText public contract v1.1
+# DeltaText public contract v1.2
 
 ## Purpose
 
@@ -88,6 +88,12 @@ perform width-aware line construction or consume font metrics. Layout
 consumers remain responsible for measuring text, choosing a line width and
 handling trailing whitespace.
 
+`Shape` applies the same valid-UTF-16 requirement and additionally rejects
+Unicode noncharacters before calling the font backend. Noncharacters are not
+silently converted to a missing glyph. A consumer that needs to inspect raw
+Unicode boundaries can still use `UnicodeText` first; boundary segmentation is
+not a promise that every code point is valid input for OpenType shaping.
+
 ## Identity and lifetime
 
 `FontSourceId` is the stable identity of immutable source bytes. The Engine
@@ -174,6 +180,31 @@ Safety flags are conservative: clusters spanning multiple source scalars,
 combining-mark clusters and Arabic joining contexts are marked
 `UnsafeToBreak | UnsafeToConcat`. `SafeToInsertTatweel` is not asserted without
 backend evidence.
+
+## Verified conformance profile
+
+The implementation is checked against the Unicode 17 data shipped with the
+repository or supplied to `FontCheck`: all 91,707 `BidiCharacterTest` cases
+through visual-order rule L2, 770,241 paragraph variants from `BidiTest`, all
+128 `BidiBrackets` mappings, 766 `GraphemeBreakTest` cases and 19,338
+`LineBreakTest` cases. These are test-suite guarantees for the current embedded
+Unicode data, not a claim that the contract performs width-dependent line
+layout.
+
+`Checks/FontCheck` additionally exercises real glyph images through the public
+producer API. It renders Doto at 64/128 px and Luckiest Guy at 48/96 px, uses a
+Noto Sans/Noto Sans Arabic fallback chain for Latin, Cyrillic and Arabic
+coverage, and probes Hebrew, Indic, Thai, CJK, combining marks, emoji, mixed
+direction text and controls. Valid probes must produce finite shaped metrics,
+valid source clusters and tightly packed Coverage/SDF/MSDF/Color images. A
+separate supersampled outline callback path with ImageSharp bitmap/PNG output
+compares Coverage images; the accepted alignment is at most one pixel and the
+alpha thresholds are `32/255` mean and `224/255` at the 95th percentile.
+
+This profile deliberately does not claim that a font contains every probed
+script: missing-glyph output is a valid result unless the fixture selects a
+font that is required to cover that script. ImageSharp is an oracle surface,
+not a DeltaText runtime dependency or font renderer.
 
 ## Glyph-image requirements
 
