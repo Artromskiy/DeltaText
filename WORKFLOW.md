@@ -14,6 +14,20 @@ dotnet build DeltaText.csproj -c Release --no-restore \
 dotnet run --project Tests/DeltaText.Tests.csproj -c Release
 ```
 
+Unicode boundary conformance (requires the locally downloaded Unicode 17
+corpora; the checker does not download them):
+
+```bash
+dotnet build Checks/UnicodeConformance/UnicodeConformance.csproj -c Release --no-restore --disable-build-servers -m:1 /p:UseSharedCompilation=false
+dotnet run --project Checks/UnicodeConformance/UnicodeConformance.csproj -c Release --no-build --no-restore -- /path/to/GraphemeBreakTest-17.0.0.txt /path/to/LineBreakTest-17.0.0.txt
+```
+
+The current Unicode 17 inputs were verified with SHA-256
+`e2d134d2c52919bace503ebb6a551c1855fe1a1faec18478c78fff254a1793ec` and
+`e69884e0dde6a8724873f885d68c52dc14518abf9ae4ca9e2283b8773db3b752`,
+respectively. Width-dependent multi-line layout remains a consumer/layout
+responsibility.
+
 SixLabors.Fonts supplies font loading, OpenType shaping, fallback selection and
 outline callbacks. DeltaText keeps the returned pixels and performs coverage,
 SDF, MSDF and color rasterization in managed C#. There is no native font or

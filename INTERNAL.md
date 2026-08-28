@@ -27,6 +27,15 @@ Safety metadata is derived conservatively from the source cluster shape:
 multi-scalar and combining clusters, plus Arabic joining contexts, receive
 `UnsafeToBreak | UnsafeToConcat`. No `SafeToInsertTatweel` claim is made.
 
+`UnicodeText` is the producer-side boundary API for the parts of text layout
+that do not need a font. Graphemes use the public SixLabors grapheme
+enumerator. Line breaks use `UnicodeLineBreakEngine`, a managed UAX #14 rule
+engine over SixLabors public Unicode property lookups; it does not access the
+package's internal line-break types. Both APIs decode UTF-16 once and publish
+owned snapshots with UTF-16 offsets. Official Unicode 17 corpus checks live in
+`Checks/UnicodeConformance`; they cover 766 grapheme cases and 19,338 line-break
+cases. Width-aware line construction is intentionally not part of this layer.
+
 `OpenFont` owns one defensive copy of the caller's font bytes. Each successful
 `Shape` call creates a new run/glyph snapshot, and each successful image call
 creates a new pixel snapshot; these are deliberate boundary allocations, not

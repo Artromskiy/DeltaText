@@ -63,6 +63,31 @@ part of this boundary. Invalid arguments fail synchronously. An unavailable
 requested representation fails with `NotSupportedException`; it is not
 represented by a nullable successful result.
 
+## Unicode boundary operations
+
+Text boundary data is available without opening a font through the independent
+static `Delta.Text.UnicodeText` API:
+
+```text
+SegmentGraphemes(UTF-16) -> GraphemeClusterMap
+GetLineBreaks(UTF-16)    -> LineBreakMap
+```
+
+`GraphemeClusterMap` contains owned extended grapheme clusters. Each
+`GraphemeCluster.SourceRange` is a half-open range in the original UTF-16
+input, and `CodePointCount` identifies how many Unicode scalar values it
+contains. `LineBreakMap` contains owned `LineBreakOpportunity` values at
+UTF-16 boundaries. `LineBreakKind.Optional` is a permitted break and
+`LineBreakKind.Mandatory` is required; a boundary absent from the map is
+prohibited. The final boundary is always represented as mandatory, including
+for empty input.
+
+These methods reject unpaired UTF-16 surrogates, do not normalize input, and
+return immutable snapshots whose arrays are owned by the result. They do not
+perform width-aware line construction or consume font metrics. Layout
+consumers remain responsible for measuring text, choosing a line width and
+handling trailing whitespace.
+
 ## Identity and lifetime
 
 `FontSourceId` is the stable identity of immutable source bytes. The Engine

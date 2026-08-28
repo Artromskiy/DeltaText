@@ -44,6 +44,19 @@ not expose an outline through the package, the requested color image uses the
 documented foreground-outline fallback. MTSDF remains an explicitly
 unsupported representation.
 
+Unicode boundaries are available independently of fonts and shaping:
+
+```csharp
+var clusters = UnicodeText.SegmentGraphemes("Café 👩🏽‍💻".AsMemory());
+var breaks = UnicodeText.GetLineBreaks("Hello world".AsMemory());
+```
+
+Both results own their arrays and use offsets into the original UTF-16 input.
+The grapheme map reports extended grapheme clusters; the line-break map reports
+UAX #14 opportunities. These APIs do not normalize text or perform
+width-dependent line layout, so the consumer remains responsible for measuring
+and placing lines.
+
 With the bundled SixLabors.Fonts 3.0.0 adapter, leave script and language at
 automatic inference. Globally enabled Boolean feature tags are supported;
 ranged features, feature values above one, explicit script/language selectors
