@@ -1,5 +1,21 @@
 # DeltaText workflow
 
+## Repository layout gate
+
+The repository must follow the shared first-party layout documented in the
+Furnace project standard. Before restore/build or a structural handoff, run:
+
+```bash
+./eng/check-layout.sh
+```
+
+The gate checks the mandatory top-level directories, rejects unexpected
+tracked top-level folders, requires src/DeltaText/ as the primary source
+project, and requires source siblings to use the src/DeltaText.<Area>/ form.
+samples/ contains runnable examples; probes/ contains bounded
+headless/compiler/contract checks. Empty mandatory domains stay tracked with
+.gitkeep.
+
 The public API and ownership rules are defined only by
 [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md). The commands below exercise the
 current implementation and migration surface; passing them does not change
@@ -13,6 +29,27 @@ dotnet build DeltaText.csproj -c Release --no-restore \
   --disable-build-servers -m:1 /p:UseSharedCompilation=false
 dotnet run --project Tests/DeltaText.Tests.csproj -c Release
 ```
+
+Headless Unicode/shaping/render check (bounded; writes fixture PNGs and JSON):
+
+```bash
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+dotnet run --project Checks/FontCheck/FontCheck.csproj -c Release -- \
+  --bidi-corpus Checks/FontCheck/Fixtures/BidiCharacterTest.txt \
+  --bidi-test Checks/FontCheck/Fixtures/BidiTest.txt \
+  --bidi-brackets Checks/FontCheck/Fixtures/BidiBrackets.txt
+```
+
+`FontCheck` validates Unicode 17 UAX #9 levels/order and paired brackets,
+shapes Doto and Luckiest Guy fixtures at two pixel sizes, and compares both
+sizes of each coverage result against an independent callback rasterizer
+through ImageSharp. On macOS it additionally runs a deterministic 2048-case
+CoreText/CoreGraphics rasterization corpus at four sizes; the exact RGBA8
+comparison and alpha error metrics are written under
+`artifacts/native-conformance`. CoreText consumes DeltaText's already-shaped
+glyph IDs and positions, so this is a native rasterization/placement baseline,
+not a second shaping implementation. It is a correctness fixture, not a
+BenchmarkDotNet run. Use `--skip-native` on platforms without CoreText.
 
 Unicode boundary conformance (requires the locally downloaded Unicode 17
 corpora; the checker does not download them):
@@ -33,7 +70,7 @@ outline callbacks. DeltaText keeps the returned pixels and performs coverage,
 SDF, MSDF and color rasterization in managed C#. There is no native font or
 MSDF DLL to copy, and no ImageSharp runtime dependency.
 
-SixLabors.Fonts 3.0.0 is distributed under the Six Labors Split License. The
+SixLabors.Fonts 3.1.0 is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
 the environment for local and CI builds; do not commit the file or its path:
 
