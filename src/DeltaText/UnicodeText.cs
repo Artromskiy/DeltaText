@@ -8,7 +8,7 @@ namespace Delta.Text;
 /// </summary>
 /// <remarks>
 /// The implementation uses the public Unicode property and grapheme APIs in
-/// SixLabors.Fonts 3.1.0 and copies the result into DeltaText-owned snapshots.
+/// The bundled SixLabors.Fonts fork build and copies the result into DeltaText-owned snapshots.
 /// SixLabors types never cross this API. Input is not normalized.
 /// </remarks>
 public static class UnicodeText

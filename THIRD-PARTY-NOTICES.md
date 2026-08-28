@@ -2,12 +2,16 @@
 
 ## SixLabors.Fonts
 
-DeltaText uses `SixLabors.Fonts` version `3.1.0` for font loading, OpenType
-layout and outline callbacks. It is licensed under the Six Labors Split
-License, version 1.0, June 2022. The applicable license file is supplied to
-the local build through `SixLaborsLicenseFile`; it is intentionally kept
-outside Git at `Furnace/Licenses/SixLabors.lic`. The package's complete notice
-is part of the NuGet package.
+DeltaText uses the locally built package `SixLabors.Fonts` version
+`3.1.0-fork.cadda774`, built from
+`https://github.com/Artromskiy/Fonts` commit
+`cadda774b743472e4186e96c8d779a8419276f98` on branch
+`fix-cff-igrunok-outline`. It supplies font loading, OpenType layout and
+outline callbacks. It is licensed under the Six Labors Split License, version
+1.0, June 2022. The applicable license file is supplied to the local build
+through `SixLaborsLicenseFile`; it is intentionally kept outside Git at
+`Furnace/Licenses/SixLabors.lic`. The package's complete notice is part of the
+local package.
 
 DeltaText does not depend on ImageSharp, SkiaSharp, HarfBuzz native assets or
 FreeType. Its pixel rasterization is its own managed implementation.

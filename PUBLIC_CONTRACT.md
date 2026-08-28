@@ -170,7 +170,7 @@ is an internal package/data update, not a change to these value-level shapes.
 
 The contract carries explicit script, language, feature-value and feature-range
 fields so another producer can implement them without changing the consumer
-API. The bundled SixLabors.Fonts 3.1.0 adapter currently supports automatic
+API. The bundled SixLabors.Fonts fork build currently supports automatic
 script/language inference, globally enabled Boolean feature tags and disabling
 the `kern` feature. It rejects explicit script or language selectors, ranged
 features, values greater than one and disabling other default features with
@@ -232,7 +232,7 @@ rasterized by DeltaText from outline data returned by SixLabors.Fonts.
 SDF and MSDF requests use `DistanceRange`. Atlas spacing is separate and is
 owned by the packer. Color requests include a palette index and foreground
 color. Color layers exposed by SixLabors.Fonts are flattened by DeltaText so
-the default palette selection is deterministic. The SixLabors.Fonts 3.1.0
+the default palette selection is deterministic. The pinned SixLabors.Fonts fork
 adapter supports palette index zero; a non-default palette is rejected because
 that package version does not expose palette selection through its public
 rendering API. If a newer color format cannot be exposed

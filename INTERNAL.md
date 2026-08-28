@@ -10,7 +10,7 @@ service disposal. No package object or native handle crosses
 `SixLaborsTextService`; no font-backend implementation type is part of the
 cross-project contract.
 
-SixLabors.Fonts performs OpenType layout, fallback selection and outline
+The pinned SixLabors.Fonts fork performs OpenType layout, fallback selection and outline
 callbacks. Bidi formatting controls are removed from the layout metrics before
 they are paired with renderer callbacks, because controls have source mapping
 but no rendered glyph. Fallback identity comes from each returned
@@ -19,7 +19,7 @@ into contract-owned arrays.
 
 The adapter passes globally enabled Boolean feature tags to
 `TextOptions.FeatureTags` and maps `kern=0` to `KerningMode.None`. SixLabors
-The DeltaText 3.1.0 adapter currently does not map script/language selectors,
+The DeltaText fork adapter currently does not map script/language selectors,
 ranged feature API, arbitrary feature values or color-palette selection, so
 those requests are rejected at the boundary rather than being silently
 dropped.
@@ -82,7 +82,7 @@ contract has a replacement.
 | Source area | Current limitation | Required follow-up |
 |---|---|---|
 | `BidiResolver` | The managed data-driven resolver passes all 91,707 Unicode 17 `BidiCharacterTest` cases through L2. The corpus does not cover UAX #9 L3/L4 line-layout rules. | Keep the corpus fixture/command in the conformance loop; add separate line-layout evidence before making an L3/L4 claim. |
-| `SixLaborsTextService` direction/feature adapter | The DeltaText SixLabors.Fonts 3.1.0 adapter does not map all contract fields. Vertical direction is currently collapsed to backend `Auto`; unsupported script, language, ranged and valued feature requests are rejected. | Add explicit backend mappings or keep these requests rejected; never silently discard direction or feature semantics. |
+| `SixLaborsTextService` direction/feature adapter | The DeltaText SixLabors.Fonts fork adapter does not map all contract fields. Vertical direction is currently collapsed to backend `Auto`; unsupported script, language, ranged and valued feature requests are rejected. | Add explicit backend mappings or keep these requests rejected; never silently discard direction or feature semantics. |
 | `FontFace.TryCreateOutline` | A cache miss scans available code points to recover a glyph outline by glyph ID. | Use a direct glyph-ID outline operation or build a bounded per-face glyph index. |
 | `ManagedGlyphRasterizer.RenderColor` | Color output is flattened through outline layers and falls back to a foreground-colored outline for unsupported formats. | Add full COLR v1/SVG paint traversal, transforms and palette handling when the managed backend exposes them safely. |
 | `MsdfGeometry` / `MsdfRasterizer` | Edge coloring, grid broad phase and distance evaluation are deterministic baseline implementations. | Add measured corner-quality and difficult-contour coverage, then optimize only against a representative workload. |

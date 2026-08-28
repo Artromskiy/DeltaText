@@ -187,7 +187,7 @@ public class SixLaborsTextService : ITextService
             if (request.Mode == GlyphImageMode.Color && request.Color is { PaletteIndex: not 0 })
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts 3.1.0 adapter exposes the default color palette only.");
+                    "The DeltaText SixLabors.Fonts fork build exposes the default color palette only.");
             }
 
             var colorSupport = request.Mode == GlyphImageMode.Color
@@ -287,7 +287,7 @@ public class SixLaborsTextService : ITextService
             }
         }
 
-        // INCOMPLETE / OBSOLETE-CANDIDATE: the DeltaText SixLabors.Fonts 3.1.0
+        // INCOMPLETE / OBSOLETE-CANDIDATE: the DeltaText SixLabors.Fonts fork build
         // adapter currently passes only global Boolean feature tags here. Keep
         // rejecting ranged, valued and language/script-specific requests until
         // the adapter can preserve their semantics instead of silently dropping
@@ -649,13 +649,13 @@ public class SixLaborsTextService : ITextService
         if (!request.Script.IsAuto)
         {
             throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts 3.1.0 adapter currently uses automatic script inference.");
+                "The DeltaText SixLabors.Fonts fork build currently uses automatic script inference.");
         }
 
         if (request.Language is not null)
         {
             throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts 3.1.0 adapter currently uses automatic language inference.");
+                "The DeltaText SixLabors.Fonts fork build currently uses automatic language inference.");
         }
 
         foreach (var feature in request.Features.Span)
@@ -663,19 +663,19 @@ public class SixLaborsTextService : ITextService
             if (feature.Range is not null)
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts 3.1.0 adapter supports feature tags only for the complete text span.");
+                "The DeltaText SixLabors.Fonts fork build supports feature tags only for the complete text span.");
             }
 
             if (feature.Value > 1)
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts 3.1.0 adapter supports only Boolean OpenType feature values.");
+                "The DeltaText SixLabors.Fonts fork build supports only Boolean OpenType feature values.");
             }
 
             if (feature.Value == 0 && feature.Tag.Value != KernTag)
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts 3.1.0 adapter cannot disable an arbitrary default OpenType feature.");
+                "The DeltaText SixLabors.Fonts fork build cannot disable an arbitrary default OpenType feature.");
             }
         }
     }

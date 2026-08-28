@@ -65,12 +65,24 @@ The current Unicode 17 inputs were verified with SHA-256
 respectively. Width-dependent multi-line layout remains a consumer/layout
 responsibility.
 
-SixLabors.Fonts supplies font loading, OpenType shaping, fallback selection and
-outline callbacks. DeltaText keeps the returned pixels and performs coverage,
-SDF, MSDF and color rasterization in managed C#. There is no native font or
-MSDF DLL to copy, and no ImageSharp runtime dependency.
+The pinned package `SixLabors.Fonts` version `3.1.0-fork.cadda774` supplies font
+loading, OpenType shaping, fallback selection and outline callbacks. It is
+built from `Artromskiy/Fonts` commit
+`cadda774b743472e4186e96c8d779a8419276f98` (branch
+`fix-cff-igrunok-outline`). DeltaText keeps the returned pixels and performs
+coverage, SDF, MSDF and color rasterization in managed C#. There is no native
+font or MSDF DLL to copy, and no ImageSharp runtime dependency.
 
-SixLabors.Fonts 3.1.0 is distributed under the Six Labors Split License. The
+The fork package is kept outside Git at
+`Furnace/Packages/SixLabors.Fonts-Fork`. `DeltaText.csproj` prepends this local
+feed by default; another machine or CI job must provide the same package feed
+through the `SixLaborsFontsPackageSource` MSBuild property. This makes a missing
+fork package fail during restore instead of silently selecting the public
+NuGet build. The package version is selected with
+`SixLaborsFontsPackageVersion` when a verified replacement is intentionally
+tested.
+
+The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
 the environment for local and CI builds; do not commit the file or its path:
 

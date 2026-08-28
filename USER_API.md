@@ -78,7 +78,7 @@ UAX #14 opportunities. These APIs do not normalize text or perform
 width-dependent line layout, so the consumer remains responsible for measuring
 and placing lines.
 
-With the bundled SixLabors.Fonts 3.1.0 adapter, leave script and language at
+With the bundled SixLabors.Fonts fork build (`3.1.0-fork.cadda774`), leave script and language at
 automatic inference. Globally enabled Boolean feature tags are supported;
 ranged features, feature values above one, explicit script/language selectors
 and non-default color palettes fail explicitly with `NotSupportedException`.
