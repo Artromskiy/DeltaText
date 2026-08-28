@@ -24,20 +24,20 @@ the contract.
 Managed checks:
 
 ```bash
-dotnet restore DeltaText.csproj
-dotnet build DeltaText.csproj -c Release --no-restore \
+dotnet restore src/DeltaText/DeltaText.csproj
+dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
   --disable-build-servers -m:1 /p:UseSharedCompilation=false
-dotnet run --project Tests/DeltaText.Tests.csproj -c Release
+dotnet run --project tests/DeltaText.Tests/DeltaText.Tests.csproj -c Release
 ```
 
 Headless Unicode/shaping/render check (bounded; writes fixture PNGs and JSON):
 
 ```bash
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
-dotnet run --project Checks/FontCheck/FontCheck.csproj -c Release -- \
-  --bidi-corpus Checks/FontCheck/Fixtures/BidiCharacterTest.txt \
-  --bidi-test Checks/FontCheck/Fixtures/BidiTest.txt \
-  --bidi-brackets Checks/FontCheck/Fixtures/BidiBrackets.txt
+dotnet run --project probes/FontCheck/FontCheck.csproj -c Release -- \
+  --bidi-corpus probes/FontCheck/Fixtures/BidiCharacterTest.txt \
+  --bidi-test probes/FontCheck/Fixtures/BidiTest.txt \
+  --bidi-brackets probes/FontCheck/Fixtures/BidiBrackets.txt
 ```
 
 `FontCheck` validates Unicode 17 UAX #9 levels/order and paired brackets,
@@ -55,8 +55,8 @@ Unicode boundary conformance (requires the locally downloaded Unicode 17
 corpora; the checker does not download them):
 
 ```bash
-dotnet build Checks/UnicodeConformance/UnicodeConformance.csproj -c Release --no-restore --disable-build-servers -m:1 /p:UseSharedCompilation=false
-dotnet run --project Checks/UnicodeConformance/UnicodeConformance.csproj -c Release --no-build --no-restore -- /path/to/GraphemeBreakTest-17.0.0.txt /path/to/LineBreakTest-17.0.0.txt
+dotnet build probes/UnicodeConformance/UnicodeConformance.csproj -c Release --no-restore --disable-build-servers -m:1 /p:UseSharedCompilation=false
+dotnet run --project probes/UnicodeConformance/UnicodeConformance.csproj -c Release --no-build --no-restore -- /path/to/GraphemeBreakTest-17.0.0.txt /path/to/LineBreakTest-17.0.0.txt
 ```
 
 The current Unicode 17 inputs were verified with SHA-256
@@ -75,7 +75,7 @@ package's build target requires a local license file. Set the property through
 the environment for local and CI builds; do not commit the file or its path:
 
 ```bash
-SixLaborsLicenseFile=/path/to/sixlabors.lic dotnet build DeltaText.csproj -c Release
+SixLaborsLicenseFile=/path/to/sixlabors.lic dotnet build src/DeltaText/DeltaText.csproj -c Release
 ```
 
 The current local license is kept outside Git at

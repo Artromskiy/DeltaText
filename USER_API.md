@@ -36,6 +36,27 @@ returned result; atlas and cache reuse belongs to the renderer.
 immutable image. DeltaText does not return atlas pages or UVs. The renderer
 copies or consumes the image and owns all atlas/GPU lifetime.
 
+For a CPU preview or headless export, compose the same shaped output with the
+optional `CpuTextRenderer`:
+
+```csharp
+var cpu = new CpuTextRenderer(text);
+var bitmap = cpu.Render(
+    new TextShapeRequest("Delta".AsMemory(), 32, new[] { font }),
+    new CpuTextRenderOptions(
+        GlyphImageMode.Msdf,
+        4,
+        new Rgba32(240, 240, 240, 255)));
+```
+
+`CpuTextImage.Pixels` is an owned, tightly packed, top-to-bottom premultiplied
+RGBA8 snapshot. `CpuTextImage.Bounds` is relative to the text baseline and
+describes the returned bitmap; transparent pixels outside glyphs are included
+inside that rectangle. The helper borrows `ITextService` and font instances
+only for the duration of `Render`; it does not own fonts, caches, atlases or
+GPU resources. SDF and MSDF are decoded with a half-pixel CPU antialiasing
+transition using the image's distance range.
+
 The service supports coverage, grayscale SDF, MSDF and flattened RGBA color
 images. SixLabors.Fonts supplies the font and outline data; DeltaText performs
 the rasterization and owns the returned pixels. Color glyph layers exposed by
@@ -57,7 +78,7 @@ UAX #14 opportunities. These APIs do not normalize text or perform
 width-dependent line layout, so the consumer remains responsible for measuring
 and placing lines.
 
-With the bundled SixLabors.Fonts 3.0.0 adapter, leave script and language at
+With the bundled SixLabors.Fonts 3.1.0 adapter, leave script and language at
 automatic inference. Globally enabled Boolean feature tags are supported;
 ranged features, feature values above one, explicit script/language selectors
 and non-default color palettes fail explicitly with `NotSupportedException`.

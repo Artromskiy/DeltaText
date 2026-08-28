@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DeltaText.Tests</AssemblyName>
+    <RootNamespace>Delta.Text.Tests</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/DeltaText/DeltaText.csproj" />
+    <None Include="Fixtures\*.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -27,16 +27,23 @@ for directory in "${required_directories[@]}"; do
     fi
 done
 
-while IFS= read -r tracked_directory; do
-    case "$tracked_directory" in
+while IFS= read -r directory_path; do
+    directory_name="${directory_path#"$repo_root/"}"
+    case "$directory_name" in
         .github|src|tests|benchmarks|samples|probes|playground|tools|adr|docs|eng|artifacts|assets)
             ;;
         *)
-            printf 'layout: unexpected tracked top-level directory: %s\n' "$tracked_directory" >&2
+            printf 'layout: unexpected top-level directory: %s\n' "$directory_name" >&2
             failed=1
             ;;
     esac
-done < <(git -C "$repo_root" ls-tree -d --name-only HEAD | sort)
+done < <(
+    find "$repo_root" -mindepth 1 -maxdepth 1 -type d \
+        ! -name .git \
+        ! -name bin \
+        ! -name obj \
+        -print | sort
+)
 
 primary_source="$repo_root/src/$project_name"
 if [[ ! -d "$primary_source" ]]; then
@@ -46,7 +53,8 @@ fi
 
 source_root="$repo_root/src"
 if [[ -d "$source_root" ]]; then
-    while IFS= read -r source_name; do
+    while IFS= read -r source_path; do
+        source_name="${source_path#"$source_root/"}"
         case "$source_name" in
             "$project_name"|"$project_name".*)
                 ;;
@@ -56,11 +64,7 @@ if [[ -d "$source_root" ]]; then
                 failed=1
                 ;;
         esac
-    done < <(
-        git -C "$repo_root" ls-tree -d --name-only HEAD src/ |
-            sed 's#^src/##' |
-            sort
-    )
+    done < <(find "$source_root" -mindepth 1 -maxdepth 1 -type d -print | sort)
 fi
 
 if (( failed != 0 )); then

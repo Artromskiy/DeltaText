@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>FontCheck</AssemblyName>
+    <RootNamespace>FontCheck</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DeltaText/DeltaText.csproj" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures/Fonts/Doto.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures/Fonts/Doto-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures/Fonts/LuckiestGuy-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf" Link="Fixtures/Fonts/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tests/DeltaText.Tests/Fixtures/NotoSansArabic-Regular.ttf" Link="Fixtures/Fonts/NotoSansArabic-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../tests/DeltaText.Tests/Fixtures/OFL.txt" Link="Fixtures/Fonts/Noto-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures/fonts.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

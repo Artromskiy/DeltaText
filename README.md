@@ -2,12 +2,15 @@
 
 Renderer-neutral CPU text producer for Furnace. The public boundary is
 `Delta.Text.Contract.ITextService`: it opens immutable font instances, shapes
-UTF-16 text and returns unpacked coverage/SDF/MSDF/color glyph images.
+UTF-16 text and returns unpacked coverage/SDF/MSDF/color glyph images. The
+optional `CpuTextRenderer` composes those images into an owned RGBA8 bitmap for
+CPU previews and headless output.
 
 - User-facing API: [USER_API.md](USER_API.md)
 - Canonical contract: [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md)
 - Internal implementation notes: [INTERNAL.md](INTERNAL.md)
 - Build and checks: [WORKFLOW.md](WORKFLOW.md)
+- Headless font and render fixture: [probes/FontCheck](probes/FontCheck/README.md)
 - Selected work: [TODO.md](TODO.md)
 - Legal notices: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 

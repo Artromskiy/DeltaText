@@ -2,7 +2,7 @@
 
 ## SixLabors.Fonts
 
-DeltaText uses `SixLabors.Fonts` version `3.0.0` for font loading, OpenType
+DeltaText uses `SixLabors.Fonts` version `3.1.0` for font loading, OpenType
 layout and outline callbacks. It is licensed under the Six Labors Split
 License, version 1.0, June 2022. The applicable license file is supplied to
 the local build through `SixLaborsLicenseFile`; it is intentionally kept
@@ -47,7 +47,7 @@ SOFTWARE.
 
 ## Noto test fonts
 
-`Tests/Fixtures/NotoSans-Regular.ttf` and
-`Tests/Fixtures/NotoSansArabic-Regular.ttf` are Noto fonts distributed under
+`tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf` and
+`tests/DeltaText.Tests/Fixtures/NotoSansArabic-Regular.ttf` are Noto fonts distributed under
 the SIL Open Font License 1.1. The complete license is
-`Tests/Fixtures/OFL.txt`. Source: https://github.com/notofonts/noto-fonts.
+`tests/DeltaText.Tests/Fixtures/OFL.txt`. Source: https://github.com/notofonts/noto-fonts.

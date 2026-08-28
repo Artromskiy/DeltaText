@@ -13,7 +13,7 @@ case "$error_log" in
 esac
 mkdir -p "$(dirname "$error_log")"
 
-exec dotnet build DeltaText.csproj \
+exec dotnet build src/DeltaText/DeltaText.csproj \
     -c Release \
     --no-restore \
     --disable-build-servers \
