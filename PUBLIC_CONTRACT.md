@@ -1,4 +1,4 @@
-# DeltaText public contract v1
+# DeltaText public contract v1.1
 
 ## Purpose
 
@@ -119,9 +119,23 @@ isolates, weak and neutral types, paired brackets, implicit levels and visual
 run order before shaping through SixLabors.Fonts. The resolver uses an embedded
 Unicode 17.0 `Bidi_Class`/`Bidi_Paired_Bracket` table and implements the
 corresponding UAX #9 rules, including overflow handling for explicit controls.
-Grapheme segmentation and line-breaking data remain responsibilities of the
-higher layout layer. Updating the Unicode data version is an internal
-data-table regeneration, not a public API change.
+
+Unicode boundary data is also available without opening a font:
+
+```text
+UnicodeText.SegmentGraphemes(UTF-16) -> GraphemeClusterMap
+UnicodeText.GetLineBreaks(UTF-16)   -> LineBreakMap
+```
+
+`GraphemeClusterMap.Clusters` contains owned extended grapheme clusters in
+logical order. `LineBreakMap.Opportunities` contains only permitted UAX #14
+boundaries; each position is a UTF-16 offset after a Unicode scalar, and each
+entry is `Optional` or `Mandatory`. The maps require valid UTF-16 and do not
+normalize input. Width-dependent line measurement, trailing-whitespace
+consumption and final line placement remain responsibilities of the layout
+consumer. The boundary implementation is validated against the Unicode 17
+GraphemeBreakTest and LineBreakTest corpora. Updating the Unicode data version
+is an internal package/data update, not a change to these value-level shapes.
 
 The contract carries explicit script, language, feature-value and feature-range
 fields so another producer can implement them without changing the consumer
