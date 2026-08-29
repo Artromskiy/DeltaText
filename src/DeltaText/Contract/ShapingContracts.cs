@@ -14,10 +14,6 @@ public readonly record struct TextRange(int StartUtf16, int LengthUtf16)
 public readonly record struct OpenTypeFeature(OpenTypeTag Tag, uint Value, TextRange? Range = null);
 
 /// <summary>Requested or resolved shaping direction.</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Design",
-    "CA1028:Enum Storage should be Int32",
-    Justification = "The byte underlying type is part of the compact shaping contract.")]
 public enum TextDirection : byte
 {
     /// <summary>Infer direction from the input.</summary>
@@ -34,10 +30,6 @@ public enum TextDirection : byte
 
 /// <summary>Safety information produced by the shaping engine for one glyph cluster.</summary>
 [Flags]
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Design",
-    "CA1028:Enum Storage should be Int32",
-    Justification = "The byte underlying type is part of the compact shaping contract.")]
 public enum GlyphSafety : byte
 {
     /// <summary>No additional safety information.</summary>

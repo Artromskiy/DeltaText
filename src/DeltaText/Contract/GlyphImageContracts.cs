@@ -1,10 +1,6 @@
 namespace Delta.Text.Contract;
 
 /// <summary>Requested CPU representation of a glyph.</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Design",
-    "CA1028:Enum Storage should be Int32",
-    Justification = "The byte underlying type is part of the compact glyph-image contract.")]
 public enum GlyphImageMode : byte
 {
     /// <summary>Invalid or unspecified representation.</summary>
@@ -20,10 +16,6 @@ public enum GlyphImageMode : byte
 }
 
 /// <summary>Exact tightly packed pixel interpretation returned to consumers.</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Design",
-    "CA1028:Enum Storage should be Int32",
-    Justification = "The byte underlying type is part of the compact glyph-image contract.")]
 public enum GlyphImageEncoding : byte
 {
     /// <summary>Invalid or unspecified encoding.</summary>
