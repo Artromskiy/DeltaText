@@ -9,12 +9,20 @@ namespace Delta.Text;
 /// <summary>Collects SixLabors outline callbacks into DeltaText's internal geometry.</summary>
 internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 {
+    private readonly bool _captureOutlines;
     private readonly List<GlyphLayer> _layers = new();
     private readonly List<CapturedGlyph> _glyphs = new();
     private GlyphLayer? _currentLayer;
     private GlyphContours? _currentContour;
-    private CapturedGlyph? _currentGlyph;
+    private CapturedGlyph _currentGlyph;
+    private bool _hasCurrentGlyph;
     private bool _skipCurrentGlyph;
+    private bool _hasGeometry;
+
+    internal SixLaborsGlyphRenderer(bool captureOutlines = true)
+    {
+        _captureOutlines = captureOutlines;
+    }
 
     internal IReadOnlyList<CapturedGlyph> Glyphs => _glyphs;
 
@@ -24,8 +32,9 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
         _glyphs.Clear();
         _currentLayer = null;
         _currentContour = null;
-        _currentGlyph = null;
+        _hasCurrentGlyph = false;
         _skipCurrentGlyph = false;
+        _hasGeometry = false;
     }
 
     public bool BeginGlyph(in FontRectangle bounds, in GlyphRendererParameters parameters)
@@ -33,8 +42,9 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
         _layers.Clear();
         _currentLayer = null;
         _currentContour = null;
-        _currentGlyph = null;
+        _hasCurrentGlyph = false;
         _skipCurrentGlyph = IsBidiFormatting(parameters.CodePoint.Value);
+        _hasGeometry = false;
         if (_skipCurrentGlyph)
         {
             return false;
@@ -51,6 +61,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             parameters.GraphemeIndex,
             textRun.Font.Family,
             bounds);
+        _hasCurrentGlyph = true;
         return true;
     }
 
@@ -62,19 +73,23 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             return;
         }
 
-        if (_currentGlyph is null)
+        if (!_hasCurrentGlyph)
         {
             throw new InvalidOperationException("SixLabors ended a glyph that was not started.");
         }
 
-        if (TryBuildOutline(_currentGlyph.GlyphId, out var outline) && outline is not null)
+        if (_captureOutlines && TryBuildOutline(_currentGlyph.GlyphId, out var outline) && outline is not null)
         {
             _currentGlyph.Outline = outline;
         }
 
+        _currentGlyph.HasOutline = _captureOutlines
+            ? _currentGlyph.Outline is not null
+            : _hasGeometry;
+
         _glyphs.Add(_currentGlyph);
 
-        _currentGlyph = null;
+        _hasCurrentGlyph = false;
         _currentContour = null;
     }
 
@@ -88,17 +103,33 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
     public void BeginFigure()
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         _currentContour = null;
     }
 
     public void EndFigure()
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         _currentContour?.Close();
         _currentContour = null;
     }
 
     public void MoveTo(SixVector2 point)
     {
+        _hasGeometry = true;
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         var layer = EnsureLayer();
         layer.Contours.BeginContour(point.X, point.Y);
         _currentContour = layer.Contours;
@@ -106,16 +137,31 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
     public void LineTo(SixVector2 point)
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         EnsureContour().LineTo(point.X, point.Y);
     }
 
     public void QuadraticBezierTo(SixVector2 controlPoint, SixVector2 point)
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         EnsureContour().QuadraticTo(controlPoint.X, controlPoint.Y, point.X, point.Y);
     }
 
     public void CubicBezierTo(SixVector2 controlPoint1, SixVector2 controlPoint2, SixVector2 point)
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         EnsureContour().CubicTo(
             controlPoint1.X,
             controlPoint1.Y,
@@ -127,6 +173,11 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
     public void ArcTo(float radiusX, float radiusY, float rotation, bool largeArc, bool sweep, SixVector2 point)
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         var contour = EnsureContour();
         if (!contour.TryGetCurrentPoint(out var startX, out var startY))
         {
@@ -240,6 +291,11 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
     public void BeginLayer(Paint? paint, FillRule fillRule)
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         _currentLayer = new GlyphLayer(ToColor(paint));
         _layers.Add(_currentLayer);
         _currentContour = null;
@@ -247,6 +303,11 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
     public void EndLayer()
     {
+        if (!_captureOutlines)
+        {
+            return;
+        }
+
         _currentContour = null;
     }
 
@@ -351,7 +412,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
     }
 }
 
-internal sealed class CapturedGlyph
+internal struct CapturedGlyph
 {
     internal CapturedGlyph(uint glyphId, int graphemeIndex, FontFamily family, FontRectangle bounds)
     {
@@ -365,6 +426,7 @@ internal sealed class CapturedGlyph
     internal int GraphemeIndex { get; }
     internal FontFamily Family { get; }
     internal FontRectangle Bounds { get; }
+    internal bool HasOutline { get; set; }
     internal GlyphOutline? Outline { get; set; }
 }
 

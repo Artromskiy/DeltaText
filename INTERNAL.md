@@ -38,12 +38,15 @@ owned snapshots with UTF-16 offsets. Official Unicode 17 corpus checks live in
 cases. Width-aware line construction is intentionally not part of this layer.
 
 `OpenFont` owns one defensive copy of the caller's font bytes. Each successful
-`Shape` call creates a new run/glyph snapshot. SixLabors `Font` objects are
-cached per face and pixel size, and the service keeps a deterministic FIFO
-glyph-image cache per face (up to 256 entries and 8 MiB). Cached images are
-immutable contract objects and are safe to share between repeated requests;
-the cache is cleared when the face closes. No mutable list, pinned managed
-array or native pixel allocation is exposed to a consumer.
+`Shape` call creates a new run/glyph snapshot, while implementation-owned
+scratch arrays, fallback lists and run builders are reused under the service
+lock. Shaping collects glyph metadata only; outline capture is deferred until
+`GenerateGlyphImage` needs a glyph, so shaping does not retain contour arrays.
+SixLabors `Font` objects are cached per face and pixel size, and the service
+keeps a deterministic FIFO glyph-image cache per face (up to 256 entries and 8
+MiB). Cached images are immutable contract objects and are safe to share between
+repeated requests; the cache is cleared when the face closes. No mutable list,
+pinned managed array or native pixel allocation is exposed to a consumer.
 
 `CpuTextRenderer.Render(ShapedText, ...)` is the explicit no-reshaping path
 for preview or UI loops that retain a shaped result. The request overload is a

@@ -25,6 +25,7 @@ internal sealed class FontFace : IDisposable
     private readonly Dictionary<GlyphImageCacheKey, GlyphImage> _glyphImages = new();
     private readonly Queue<GlyphImageCacheKey> _glyphImageOrder = new();
     private readonly SixLaborsGlyphRenderer _outlineRenderer = new();
+    private readonly TextRenderer _outlineTextRenderer;
     private int _glyphImageBytes;
     private int _disposed;
 
@@ -42,6 +43,7 @@ internal sealed class FontFace : IDisposable
         _family = family;
         Metrics = metrics;
         _variations = variations;
+        _outlineTextRenderer = new TextRenderer(_outlineRenderer);
     }
 
     internal int UnitsPerEm => Metrics.UnitsPerEm;
@@ -214,7 +216,7 @@ internal sealed class FontFace : IDisposable
             TextBaseline = TextBaseline.LineBox,
             GraphemeIndex = 0
         };
-        new TextRenderer(_outlineRenderer).Render((ushort)glyphId, options);
+        _outlineTextRenderer.Render((ushort)glyphId, options);
         if (_outlineRenderer.Glyphs.Count == 0 || _outlineRenderer.Glyphs[0].GlyphId != glyphId
             || _outlineRenderer.Glyphs[0].Outline is not { } captured)
         {

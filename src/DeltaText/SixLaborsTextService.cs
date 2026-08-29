@@ -17,9 +17,30 @@ public class SixLaborsTextService : ITextService
 {
     private readonly object _gate = new();
     private readonly Dictionary<FontInstanceId, FontFace> _fonts = new();
-    private readonly SixLaborsGlyphRenderer _glyphRenderer = new();
+    private readonly SixLaborsGlyphRenderer _glyphRenderer = new(captureOutlines: false);
+    private readonly TextRenderer _textRenderer;
+    private readonly List<FontFamily> _fallbackFamilies = new();
+    private readonly List<SixTag> _featureTags = new();
+    private readonly List<ShapedRun> _runScratch = new();
+    private readonly RunBuilder _runBuilder = new();
+    private readonly Dictionary<int, int> _clusterIndices = new();
+    private ResolvedFont[] _fallbackScratch = Array.Empty<ResolvedFont>();
+    private int[] _bidiRunMap = Array.Empty<int>();
+    private int[] _clusterStarts = Array.Empty<int>();
+    private int[] _clusterCounts = Array.Empty<int>();
+    private int[] _metricClusterIndices = Array.Empty<int>();
+    private GlyphSafety[] _safetyByCluster = Array.Empty<GlyphSafety>();
+    private GlyphSafety[] _glyphSafety = Array.Empty<GlyphSafety>();
+    private TextOptions? _textOptions;
+    private int _fallbackCount;
     private ulong _nextFontValue = 1;
     private int _disposed;
+
+    /// <summary>Creates a thread-safe text service with implementation-owned scratch storage.</summary>
+    public SixLaborsTextService()
+    {
+        _textRenderer = new TextRenderer(_glyphRenderer);
+    }
 
     /// <inheritdoc />
     public FontInstanceId OpenFont(in FontOpenRequest request)
@@ -91,10 +112,10 @@ public class SixLaborsTextService : ITextService
             }
 
             var primary = fallback[0].Font;
-            var options = CreateTextOptions(primary, fallback, request);
+            var options = CreateTextOptions(primary, fallback, _fallbackCount, request);
             var metrics = FilterFormattingMetrics(TextMeasurer.GetGlyphMetrics(request.Text.Span, options));
             _glyphRenderer.Reset();
-            new TextRenderer(_glyphRenderer).Render(request.Text.Span, options);
+            _textRenderer.Render(request.Text.Span, options);
             if (metrics.Length != _glyphRenderer.Glyphs.Count)
             {
                 throw new InvalidOperationException(
@@ -104,14 +125,16 @@ public class SixLaborsTextService : ITextService
             var bidiRuns = BidiResolver.Resolve(text, request.Direction);
             var bidiRunMap = BuildBidiRunMap(bidiRuns, text.Length);
             var glyphSafety = ResolveGlyphSafety(text, metrics);
-            var result = new List<ShapedRun>(bidiRuns.Length);
-            var current = new RunBuilder();
+            _runScratch.Clear();
+            var result = _runScratch;
+            var current = _runBuilder;
+            current.Reset();
             var metricSpan = metrics.Span;
             for (var i = 0; i < metrics.Length; i++)
             {
                 var metric = metricSpan[i];
                 var captured = _glyphRenderer.Glyphs[i];
-                var fontIndex = FindFontIndex(fallback, metric.Font.Family);
+                var fontIndex = FindFontIndex(fallback, _fallbackCount, metric.Font.Family);
                 var resolvedFont = fallback[fontIndex];
                 var faceId = resolvedFont.Id;
                 var bidi = FindBidiRun(bidiRuns, bidiRunMap, metric.StringIndex);
@@ -119,7 +142,7 @@ public class SixLaborsTextService : ITextService
                         || current.Direction != bidi.Direction))
                 {
                     result.Add(current.Build());
-                    current = new RunBuilder();
+                    current.Reset();
                 }
 
                 if (!current.HasGlyphs)
@@ -141,7 +164,7 @@ public class SixLaborsTextService : ITextService
                     offsetX -= leftBearing * request.PixelsPerEm / glyphFace.UnitsPerEm;
                 }
 
-                if (captured.Outline is null)
+                if (!captured.HasOutline)
                 {
                     offsetX = 0;
                 }
@@ -164,13 +187,6 @@ public class SixLaborsTextService : ITextService
                     advanceY,
                     baselineOffset);
 
-                if (captured.Outline is not null)
-                {
-                    captured.Outline.Translate(
-                        -metric.Advance.X,
-                        -metric.Advance.Y - baselineOffset);
-                    glyphFace.CacheOutline(request.PixelsPerEm, captured.GlyphId, ColorFontSupport.None, captured.Outline);
-                }
             }
 
             if (current.HasGlyphs)
@@ -178,7 +194,10 @@ public class SixLaborsTextService : ITextService
                 result.Add(current.Build());
             }
 
-            return new ShapedText(text.Length, result.ToArray());
+            var shapedRuns = result.ToArray();
+            result.Clear();
+            current.Reset();
+            return new ShapedText(text.Length, shapedRuns);
         }
     }
 
@@ -284,15 +303,14 @@ public class SixLaborsTextService : ITextService
         }
     }
 
-    private static TextOptions CreateTextOptions(
+    private TextOptions CreateTextOptions(
         SixFont primary,
         ResolvedFont[] fallback,
+        int fallbackCount,
         in TextShapeRequest request)
     {
         var kerningMode = KerningMode.Standard;
-        var tags = request.Features.Length == 0
-            ? null
-            : new List<SixTag>(request.Features.Length);
+        _featureTags.Clear();
         if (request.Features.Length > 0)
         {
             foreach (var feature in request.Features.Span)
@@ -303,7 +321,7 @@ public class SixLaborsTextService : ITextService
                 }
                 else if (feature.Value == 1)
                 {
-                    tags?.Add(new SixTag(feature.Tag.Value));
+                    _featureTags.Add(new SixTag(feature.Tag.Value));
                 }
             }
         }
@@ -313,37 +331,34 @@ public class SixLaborsTextService : ITextService
         // rejecting ranged, valued and language/script-specific requests until
         // the adapter can preserve their semantics instead of silently dropping
         // them.
-        var options = new TextOptions(primary)
+        var options = _textOptions ??= new TextOptions(primary);
+        options.Font = primary;
+        options.Dpi = SixLaborsAdapterConstants.LayoutDpi;
+        options.TextDirection = ToSixDirection(request.Direction);
+        options.TextBidiMode = TextBidiMode.Normal;
+        options.KerningMode = kerningMode;
+        options.ColorFontSupport = ColorFontSupport.None;
+        _fallbackFamilies.Clear();
+        for (var i = 1; i < fallbackCount; i++)
         {
-            Dpi = SixLaborsAdapterConstants.LayoutDpi,
-            TextDirection = ToSixDirection(request.Direction),
-            TextBidiMode = TextBidiMode.Normal,
-            KerningMode = kerningMode,
-            ColorFontSupport = ColorFontSupport.None
-        };
-
-        if (fallback.Length > 1)
-        {
-            var families = new FontFamily[fallback.Length - 1];
-            for (var i = 1; i < fallback.Length; i++)
-            {
-                families[i - 1] = fallback[i].Face.Family;
-            }
-
-            options.FallbackFontFamilies = families;
+            _fallbackFamilies.Add(fallback[i].Face.Family);
         }
 
-        if (tags is not null)
-        {
-            options.FeatureTags = tags;
-        }
+        options.FallbackFontFamilies = _fallbackFamilies;
+        options.FeatureTags = _featureTags;
 
         return options;
     }
 
     private ResolvedFont[] ResolveFallback(ReadOnlySpan<FontInstanceId> ids, float pixelsPerEm)
     {
-        var result = new ResolvedFont[ids.Length];
+        if (_fallbackScratch.Length < ids.Length)
+        {
+            _fallbackScratch = new ResolvedFont[ids.Length];
+        }
+
+        var result = _fallbackScratch;
+        _fallbackCount = ids.Length;
         for (var i = 0; i < ids.Length; i++)
         {
             var face = GetFont(ids[i]);
@@ -364,9 +379,9 @@ public class SixLaborsTextService : ITextService
         }
     }
 
-    private static int FindFontIndex(ResolvedFont[] fonts, FontFamily family)
+    private static int FindFontIndex(ResolvedFont[] fonts, int fontCount, FontFamily family)
     {
-        for (var i = 0; i < fonts.Length; i++)
+        for (var i = 0; i < fontCount; i++)
         {
             if (fonts[i].Face.Family.Equals(family))
             {
@@ -396,10 +411,15 @@ public class SixLaborsTextService : ITextService
         return runs.Length == 0 ? new BidiRun(0, 0, 0, ContractTextDirection.LeftToRight) : runs[^1];
     }
 
-    private static int[] BuildBidiRunMap(BidiRun[] runs, int textLength)
+    private int[] BuildBidiRunMap(BidiRun[] runs, int textLength)
     {
-        var map = new int[textLength];
-        Array.Fill(map, -1);
+        if (_bidiRunMap.Length < textLength)
+        {
+            _bidiRunMap = new int[textLength];
+        }
+
+        var map = _bidiRunMap;
+        Array.Fill(map, -1, 0, textLength);
         for (var i = 0; i < runs.Length; i++)
         {
             var start = Math.Max(0, runs[i].Start);
@@ -455,7 +475,7 @@ public class SixLaborsTextService : ITextService
             BidiClass.Bn or BidiClass.Lre or BidiClass.Rle or BidiClass.Lro or BidiClass.Rlo
             or BidiClass.Pdf or BidiClass.Lri or BidiClass.Rli or BidiClass.Fsi or BidiClass.Pdi;
 
-    private static GlyphSafety[] ResolveGlyphSafety(
+    private GlyphSafety[] ResolveGlyphSafety(
         string text,
         ReadOnlyMemory<SixLabors.Fonts.GlyphMetrics> metrics)
     {
@@ -465,19 +485,21 @@ public class SixLaborsTextService : ITextService
             return Array.Empty<GlyphSafety>();
         }
 
-        var clusterIndices = new Dictionary<int, int>(metricSpan.Length);
-        var clusterStarts = new int[metricSpan.Length];
-        var clusterCounts = new int[metricSpan.Length];
+        EnsureSafetyScratch(metricSpan.Length);
+        _clusterIndices.Clear();
+        var clusterStarts = _clusterStarts;
+        var clusterCounts = _clusterCounts;
         var clusterCount = 0;
-        var metricClusterIndices = new int[metricSpan.Length];
+        var metricClusterIndices = _metricClusterIndices;
         for (var i = 0; i < metricSpan.Length; i++)
         {
             var start = metricSpan[i].StringIndex;
-            if (!clusterIndices.TryGetValue(start, out var clusterIndex))
+            if (!_clusterIndices.TryGetValue(start, out var clusterIndex))
             {
                 clusterIndex = clusterCount++;
-                clusterIndices.Add(start, clusterIndex);
+                _clusterIndices.Add(start, clusterIndex);
                 clusterStarts[clusterIndex] = start;
+                clusterCounts[clusterIndex] = 0;
             }
 
             clusterCounts[clusterIndex]++;
@@ -485,12 +507,12 @@ public class SixLaborsTextService : ITextService
         }
 
         Array.Sort(clusterStarts, 0, clusterCount);
-        var safetyByCluster = new GlyphSafety[clusterCount];
+        var safetyByCluster = _safetyByCluster;
         for (var i = 0; i < clusterCount; i++)
         {
             var start = clusterStarts[i];
             var end = i + 1 < clusterCount ? clusterStarts[i + 1] : text.Length;
-            var clusterIndex = clusterIndices[start];
+            var clusterIndex = _clusterIndices[start];
             var source = text.AsSpan(start, end - start);
             var requiresReshaping = clusterCounts[clusterIndex] > 1
                 || CountSourceScalars(source) > 1
@@ -501,13 +523,25 @@ public class SixLaborsTextService : ITextService
                 : GlyphSafety.None;
         }
 
-        var result = new GlyphSafety[metricSpan.Length];
+        var result = _glyphSafety;
         for (var i = 0; i < result.Length; i++)
         {
             result[i] = safetyByCluster[metricClusterIndices[i]];
         }
 
         return result;
+    }
+
+    private void EnsureSafetyScratch(int length)
+    {
+        if (_clusterStarts.Length < length)
+        {
+            _clusterStarts = new int[length];
+            _clusterCounts = new int[length];
+            _metricClusterIndices = new int[length];
+            _safetyByCluster = new GlyphSafety[length];
+            _glyphSafety = new GlyphSafety[length];
+        }
     }
 
     private static int CountSourceScalars(ReadOnlySpan<char> source)
@@ -802,6 +836,24 @@ public class SixLaborsTextService : ITextService
         internal FontInstanceId Font => _font;
         internal ContractTextDirection Direction => _direction;
         internal byte BidiLevel => _bidiLevel;
+
+        internal void Reset()
+        {
+            _glyphs.Clear();
+            _sourceRange = default;
+            _font = default;
+            _direction = default;
+            _bidiLevel = 0;
+            _pixelsPerEm = 0;
+            _advanceX = 0;
+            _advanceY = 0;
+            _left = 0;
+            _top = 0;
+            _right = 0;
+            _bottom = 0;
+            _originX = 0;
+            _hasBounds = false;
+        }
 
         internal void Start(BidiRun bidi, FontInstanceId font, float pixelsPerEm, float originX, float originY)
         {
