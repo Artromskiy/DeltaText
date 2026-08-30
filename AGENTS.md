@@ -13,8 +13,8 @@ shaders.
 - [DECISIONS.md](DECISIONS.md) — backend and ownership decisions.
 - [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — required legal metadata.
 - [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) — shared editor acceptance.
-- [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md) — text/render ownership
-  and migration order.
+- [../CONTRACTS.md](../CONTRACTS.md) — text/render ownership; project
+  `TODO.md` contains the selected implementation work.
 
 SixLabors.Fonts is the only font-processing dependency. Pixel storage,
 coverage/SDF/MSDF/color rasterization and returned image ownership stay in

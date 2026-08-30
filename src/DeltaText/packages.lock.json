@@ -11,7 +11,6 @@
       "deltamaths": {
         "type": "Project"
       }
-    },
-    "net8.0/osx-arm64": {}
+    }
   }
 }
