@@ -80,7 +80,6 @@ public class SixLaborsTextService : ITextService
         lock (_gate)
         {
             ThrowIfDisposed();
-            ValidateFallback(request.FontFallback.Span);
             return _shaping.Shape(request);
         }
     }
@@ -184,17 +183,6 @@ public class SixLaborsTextService : ITextService
             }
 
             _fonts.Clear();
-        }
-    }
-
-    private void ValidateFallback(ReadOnlySpan<FontInstanceId> ids)
-    {
-        for (var i = 0; i < ids.Length; i++)
-        {
-            if (!ids[i].IsValid || !_fonts.ContainsKey(ids[i]))
-            {
-                throw new ArgumentException($"Font instance {ids[i]} is not open.", nameof(ids));
-            }
         }
     }
 
@@ -361,19 +349,19 @@ public class SixLaborsTextService : ITextService
             if (feature.Range is not null)
             {
                 throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts fork build supports feature tags only for the complete text span.");
+                    "The DeltaText SixLabors.Fonts fork build supports feature tags only for the complete text span.");
             }
 
             if (feature.Value > 1)
             {
                 throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts fork build supports only Boolean OpenType feature values.");
+                    "The DeltaText SixLabors.Fonts fork build supports only Boolean OpenType feature values.");
             }
 
             if (feature.Value == 0 && feature.Tag.Value != KernTag)
             {
                 throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts fork build cannot disable an arbitrary default OpenType feature.");
+                    "The DeltaText SixLabors.Fonts fork build cannot disable an arbitrary default OpenType feature.");
             }
         }
     }
@@ -382,5 +370,4 @@ public class SixLaborsTextService : ITextService
         => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     private const uint KernTag = 0x6B65726E;
-
 }

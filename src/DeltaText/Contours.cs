@@ -46,8 +46,6 @@ internal sealed class GlyphContours
         SetCurrentPoint(x, y);
     }
 
-    public void Close() { }
-
     internal bool TryGetCurrentPoint(out float x, out float y)
     {
         x = _currentX;

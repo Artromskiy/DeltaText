@@ -105,6 +105,7 @@ internal static class ManagedGlyphRasterizer
         // COLR v1/SVG paint traversal, layer transforms and palette handling
         // when the font backend exposes those data without losing ownership.
         var pixels = new byte[checked(geometry.Width * geometry.Height * 4)];
+        var coverage = Array.Empty<byte>();
         for (var i = 0; i < layers.Length; i++)
         {
             var layer = layers[i];
@@ -119,7 +120,13 @@ internal static class ManagedGlyphRasterizer
                 continue;
             }
 
-            var coverage = RenderCoverage(layerGeometry);
+            var coverageLength = checked(layerGeometry.Width * layerGeometry.Height);
+            if (coverage.Length < coverageLength)
+            {
+                coverage = new byte[coverageLength];
+            }
+
+            RenderCoverage(layerGeometry, coverage);
             var color = layer.Color == new Rgba32(255, 255, 255, 255) ? foreground : layer.Color;
             BlendColor(pixels, coverage, color, geometry.Width, geometry.Height);
         }
@@ -160,6 +167,18 @@ internal static class ManagedGlyphRasterizer
     private static byte[] RenderCoverage(MsdfGeometry geometry)
     {
         var pixels = new byte[checked(geometry.Width * geometry.Height)];
+        RenderCoverage(geometry, pixels);
+        return pixels;
+    }
+
+    private static void RenderCoverage(MsdfGeometry geometry, Span<byte> pixels)
+    {
+        var length = checked(geometry.Width * geometry.Height);
+        if (pixels.Length < length)
+        {
+            throw new ArgumentException("Coverage scratch storage is too small.", nameof(pixels));
+        }
+
         const int samples = 4;
         for (var y = 0; y < geometry.Height; y++)
         {
@@ -183,8 +202,6 @@ internal static class ManagedGlyphRasterizer
                 pixels[y * geometry.Width + x] = (byte)(inside * 255 / (samples * samples));
             }
         }
-
-        return pixels;
     }
 
     private static byte[] RenderSdf(MsdfGeometry geometry, float distanceRange)

@@ -118,7 +118,6 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             return;
         }
 
-        _currentContour?.Close();
         _currentContour = null;
     }
 

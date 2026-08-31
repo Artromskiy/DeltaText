@@ -655,7 +655,6 @@ internal static class TestRunner
         contours.LineTo(100, 0);
         contours.LineTo(100, 100);
         contours.LineTo(0, 100);
-        contours.Close();
 
         if (!ManagedMsdf.TryGenerate(contours, 32, 100, 2, 4, 0xD37A5EEDu,
                 out var width, out var height, out var first) || first is null)
@@ -697,7 +696,6 @@ internal static class TestRunner
         curved.QuadraticTo(100, 0, 100, 50);
         curved.QuadraticTo(100, 100, 50, 100);
         curved.QuadraticTo(0, 100, 0, 50);
-        curved.Close();
         if (!ManagedMsdf.TryGenerate(curved, 32, 100, 2, 4, 0xD37A5EEDu,
                 out var curvedWidth, out var curvedHeight, out var curvedPixels) || curvedPixels is null)
         {

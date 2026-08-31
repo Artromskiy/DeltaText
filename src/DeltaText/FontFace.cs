@@ -22,11 +22,9 @@ internal sealed class FontFace : IDisposable
     private readonly Dictionary<float, SixFont> _fontsByPixelsPerEm = new();
     private readonly Dictionary<int, float> _leftSideBearings = new();
     private readonly Dictionary<GlyphOutlineKey, GlyphOutline> _outlines = new();
-    private readonly Dictionary<GlyphImageCacheKey, GlyphImage> _glyphImages = new();
-    private readonly Queue<GlyphImageCacheKey> _glyphImageOrder = new();
+    private readonly GlyphImageCache _glyphImageCache = new();
     private readonly SixLaborsGlyphRenderer _outlineRenderer = new();
     private readonly TextRenderer _outlineTextRenderer;
-    private int _glyphImageBytes;
     private int _disposed;
 
     private FontFace(
@@ -61,12 +59,15 @@ internal sealed class FontFace : IDisposable
         var ownedData = request.Data.ToArray();
         var stream = new MemoryStream(ownedData, writable: false);
         var collection = new FontCollection();
+        var transferred = false;
         try
         {
             var family = AddFamily(collection, stream, ownedData, request.FaceIndex);
             var baseFont = family.CreateFont(1);
             var variations = ConvertVariations(request.Variations.Span);
-            return new FontFace(ownedData, stream, collection, family, baseFont.FontMetrics, variations);
+            var result = new FontFace(ownedData, stream, collection, family, baseFont.FontMetrics, variations);
+            transferred = true;
+            return result;
         }
         catch (Exception exception) when (
             exception is EndOfStreamException
@@ -74,8 +75,14 @@ internal sealed class FontFace : IDisposable
             or FormatException
             or OverflowException)
         {
-            stream.Dispose();
             throw new ArgumentException("Font data is not a supported font.", nameof(request), exception);
+        }
+        finally
+        {
+            if (!transferred)
+            {
+                stream.Dispose();
+            }
         }
     }
 
@@ -141,42 +148,13 @@ internal sealed class FontFace : IDisposable
         [NotNullWhen(true)] out GlyphImage? image)
     {
         ThrowIfDisposed();
-        return _glyphImages.TryGetValue(key, out image);
+        return _glyphImageCache.TryGet(key, out image);
     }
 
     internal void CacheGlyphImage(in GlyphImageCacheKey key, GlyphImage image)
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(image);
-        var size = image.Pixels.Length;
-        if (size > MaxCachedGlyphImageBytes)
-        {
-            return;
-        }
-
-        if (_glyphImages.ContainsKey(key))
-        {
-            return;
-        }
-
-        while (_glyphImages.Count >= MaxCachedGlyphImages
-            || _glyphImageBytes > MaxCachedGlyphImageBytes - size)
-        {
-            if (_glyphImageOrder.Count == 0)
-            {
-                break;
-            }
-
-            var evictedKey = _glyphImageOrder.Dequeue();
-            if (_glyphImages.Remove(evictedKey, out var evicted))
-            {
-                _glyphImageBytes -= evicted.Pixels.Length;
-            }
-        }
-
-        _glyphImages.Add(key, image);
-        _glyphImageOrder.Enqueue(key);
-        _glyphImageBytes += size;
+        _glyphImageCache.Add(key, image);
     }
 
     internal bool TryCreateOutline(
@@ -240,9 +218,7 @@ internal sealed class FontFace : IDisposable
             _fontsByPixelsPerEm.Clear();
             _leftSideBearings.Clear();
             _outlines.Clear();
-            _glyphImages.Clear();
-            _glyphImageOrder.Clear();
-            _glyphImageBytes = 0;
+            _glyphImageCache.Clear();
             _fontStream.Dispose();
         }
 
@@ -305,9 +281,6 @@ internal sealed class FontFace : IDisposable
 
     private void ThrowIfDisposed()
         => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-
-    private const int MaxCachedGlyphImages = 256;
-    private const int MaxCachedGlyphImageBytes = 8 * 1024 * 1024;
 }
 
 internal readonly record struct GlyphOutlineKey(uint GlyphId, float PixelsPerEm, ColorFontSupport Support);

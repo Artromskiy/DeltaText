@@ -3,11 +3,11 @@ using System.Runtime.InteropServices;
 using Delta.Text.Contract;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
-using SixTag = SixLabors.Fonts.Tables.AdvancedTypographic.Tag;
-using SixTextDirection = SixLabors.Fonts.TextDirection;
-using SixFont = SixLabors.Fonts.Font;
 using ContractShapedGlyph = Delta.Text.Contract.ShapedGlyph;
 using ContractTextDirection = Delta.Text.Contract.TextDirection;
+using SixFont = SixLabors.Fonts.Font;
+using SixTag = SixLabors.Fonts.Tables.AdvancedTypographic.Tag;
+using SixTextDirection = SixLabors.Fonts.TextDirection;
 
 namespace Delta.Text;
 
@@ -52,12 +52,13 @@ internal sealed class TextShapingPipeline
 
     internal ShapedText Shape(in TextShapeRequest request)
     {
-        var text = GetText(request.Text);
-        var fallback = ResolveFallback(request.FontFallback.Span, request.PixelsPerEm);
-        if (text.Length == 0)
+        if (request.Text.IsEmpty)
         {
             return new ShapedText(0, Array.Empty<ShapedRun>());
         }
+
+        var text = GetText(request.Text);
+        var fallback = ResolveFallback(request.FontFallback.Span, request.PixelsPerEm);
 
         var primary = fallback[0].Font;
         var options = CreateTextOptions(primary, fallback, _fallbackCount, request);
@@ -98,12 +99,9 @@ internal sealed class TextShapingPipeline
                 current.Start(bidi, faceId, request.PixelsPerEm, metric.Advance.X);
             }
 
-            var advanceX = IsVertical(bidi.Direction) ? 0 : metric.Advance.Height;
-            var advanceY = IsVertical(bidi.Direction) ? metric.Advance.Height : 0;
-            if (!IsVertical(bidi.Direction))
-            {
-                advanceX = metric.Advance.Width;
-            }
+            var isVertical = IsVertical(bidi.Direction);
+            var advanceX = isVertical ? 0 : metric.Advance.Width;
+            var advanceY = isVertical ? metric.Advance.Height : 0;
 
             var glyphFace = resolvedFont.Face;
             var offsetX = metric.Bounds.X - metric.Advance.X;
@@ -195,13 +193,18 @@ internal sealed class TextShapingPipeline
 
     private ResolvedFont[] ResolveFallback(ReadOnlySpan<FontInstanceId> ids, float pixelsPerEm)
     {
+        var previousCount = _fallbackCount;
         if (_fallbackScratch.Length < ids.Length)
         {
             _fallbackScratch = new ResolvedFont[ids.Length];
         }
 
         var result = _fallbackScratch;
-        _fallbackCount = ids.Length;
+        if (previousCount > 0)
+        {
+            Array.Clear(result, 0, previousCount);
+        }
+
         _fontIndices.Clear();
         for (var i = 0; i < ids.Length; i++)
         {
@@ -210,6 +213,7 @@ internal sealed class TextShapingPipeline
             _fontIndices.TryAdd(face.Family, i);
         }
 
+        _fallbackCount = ids.Length;
         return result;
     }
 
