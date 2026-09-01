@@ -2,3 +2,8 @@ bin/
 obj/
 .idea/
 .vs/
+# Keep only the shared root settings; ignore nested/local VS Code state.
+**/.vscode/
+!/.vscode/
+!/.vscode/settings.json
+!/.vscode/extensions.json
