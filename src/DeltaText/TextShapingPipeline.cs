@@ -31,6 +31,7 @@ internal sealed class TextShapingPipeline
     private readonly List<ShapedRun> _runScratch = new();
     private readonly RunBuilder _runBuilder = new();
     private readonly Dictionary<FontFamily, int> _fontIndices = new();
+    private readonly ShapedTextCache _cache = new();
     private readonly Dictionary<int, int> _clusterIndices = new();
     private ResolvedFont[] _fallbackScratch = Array.Empty<ResolvedFont>();
     private SixLabors.Fonts.GlyphMetrics[] _filteredMetricsScratch = Array.Empty<SixLabors.Fonts.GlyphMetrics>();
@@ -55,6 +56,28 @@ internal sealed class TextShapingPipeline
         if (request.Text.IsEmpty)
         {
             return new ShapedText(0, Array.Empty<ShapedRun>());
+        }
+
+        var canCache = request.FontFallback.Length == 1
+            && request.Features.IsEmpty
+            && request.Language is null
+            && request.Script.IsAuto;
+        var cacheKey = default(ShapedTextCache.Key);
+        var hasCacheKey = false;
+        if (canCache && MemoryMarshal.TryGetString(request.Text, out var source, out var start, out var length)
+            && start == 0 && length == source.Length)
+        {
+            cacheKey = new ShapedTextCache.Key(
+                source,
+                request.FontFallback.Span[0],
+                request.PixelsPerEm,
+                request.Direction,
+                request.Script.Value);
+            hasCacheKey = true;
+            if (_cache.TryGet(cacheKey, out var cached))
+            {
+                return cached;
+            }
         }
 
         var text = GetText(request.Text);
@@ -142,7 +165,13 @@ internal sealed class TextShapingPipeline
         var shapedRuns = result.ToArray();
         result.Clear();
         current.Reset();
-        return new ShapedText(text.Length, shapedRuns);
+        var shaped = new ShapedText(text.Length, shapedRuns);
+        if (hasCacheKey)
+        {
+            _cache.Add(cacheKey, shaped);
+        }
+
+        return shaped;
     }
 
     private TextOptions CreateTextOptions(
