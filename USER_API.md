@@ -30,7 +30,8 @@ text.CloseFont(font);
 return owned snapshots: their arrays and pixel payloads may be retained by the
 caller after the method returns, but are not reusable views into the service or
 its native buffers. The snapshot boundary intentionally allocates for the
-returned result; atlas and cache reuse belongs to the renderer.
+returned result; the service may cache those results internally, while
+consumer-facing shaped-result and atlas reuse belongs to the renderer.
 
 `GlyphImage.Pixels` is tightly packed, top-to-bottom, and owned by the returned
 immutable image. DeltaText does not return atlas pages or UVs. The renderer
@@ -89,7 +90,11 @@ UAX #14 opportunities. These APIs do not normalize text or perform
 width-dependent line layout, so the consumer remains responsible for measuring
 and placing lines.
 
-With the bundled SixLabors.Fonts fork build (`3.1.0-fork.cadda774`), leave script and language at
-automatic inference. Globally enabled Boolean feature tags are supported;
+With the bundled SixLabors.Fonts fork build (`3.1.0-fork.cadda774`), leave
+script and language at automatic inference. Globally enabled Boolean feature
+tags are supported;
 ranged features, feature values above one, explicit script/language selectors
 and non-default color palettes fail explicitly with `NotSupportedException`.
+The contract contains vertical direction values, but this implementation currently
+maps them to automatic horizontal shaping; use `Auto`, `LeftToRight` or
+`RightToLeft` for supported layout behavior.

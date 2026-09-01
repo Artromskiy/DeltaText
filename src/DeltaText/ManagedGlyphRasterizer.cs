@@ -126,9 +126,9 @@ internal static class ManagedGlyphRasterizer
                 coverage = new byte[coverageLength];
             }
 
-            RenderCoverage(layerGeometry, coverage);
+            RenderCoverage(layerGeometry, coverage.AsSpan(0, coverageLength));
             var color = layer.Color == new Rgba32(255, 255, 255, 255) ? foreground : layer.Color;
-            BlendColor(pixels, coverage, color, geometry.Width, geometry.Height);
+            BlendColor(pixels, coverage.AsSpan(0, coverageLength), color, geometry.Width, geometry.Height);
         }
 
         return new GlyphImage(
@@ -143,7 +143,7 @@ internal static class ManagedGlyphRasterizer
             pixels);
     }
 
-    private static void BlendColor(byte[] pixels, byte[] coverage, Rgba32 color, int width, int height)
+    private static void BlendColor(byte[] pixels, ReadOnlySpan<byte> coverage, Rgba32 color, int width, int height)
     {
         var count = Math.Min(coverage.Length, checked(width * height));
         for (var i = 0; i < count; i++)

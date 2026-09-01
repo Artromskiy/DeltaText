@@ -10,16 +10,16 @@ service disposal. No package object or native handle crosses
 `SixLaborsTextService`; no font-backend implementation type is part of the
 cross-project contract.
 
-The pinned SixLabors.Fonts fork performs OpenType layout, fallback selection and outline
-callbacks. Bidi formatting controls are removed from the layout metrics before
+The pinned SixLabors.Fonts fork performs OpenType layout, fallback selection and
+outline callbacks. Bidi formatting controls are removed from the layout metrics before
 they are paired with renderer callbacks, because controls have source mapping
 but no rendered glyph. Fallback identity comes from each returned
 `GlyphMetrics.Font`, not from the enclosing text run. Shaping output is copied
 into contract-owned arrays.
 
 The adapter passes globally enabled Boolean feature tags to
-`TextOptions.FeatureTags` and maps `kern=0` to `KerningMode.None`. SixLabors
-The DeltaText fork adapter currently does not map script/language selectors,
+`TextOptions.FeatureTags` and maps `kern=0` to `KerningMode.None`. The DeltaText
+fork adapter currently does not map script/language selectors,
 ranged feature API, arbitrary feature values or color-palette selection, so
 those requests are rejected at the boundary rather than being silently
 dropped.
@@ -59,7 +59,10 @@ and generates deterministic RGB8 pixels. Its geometric values use
 `Delta.Maths.float2` and `Delta.Maths.DeltaMaths`; the only
 `System.Numerics.Vector2` reference is the private callback adapter required by
 SixLabors.Fonts. ImageSharp, SkiaSharp, FreeType and native MSDF assets are not
-runtime dependencies.
+runtime dependencies. The CPU compositor computes the source/destination
+intersection once per glyph and then blends contiguous rows. The MSDF edge grid
+uses prefix offsets plus one flat edge-index array, keeping candidate order
+deterministic without allocating a list for every cell.
 
 `UnicodeBidiData` is generated from ICU 78.3's pinned Unicode 17.0 bidi
 properties. The repository stores the resulting table and has no ICU runtime

@@ -18,15 +18,31 @@ internal static class CpuGlyphBlender
             placement.Origin.y + image.PlaneBounds.Top - bounds.Top));
         var bytesPerPixel = CpuGlyphImageFormat.GetBytesPerPixel(image.Encoding);
         var source = image.Pixels.Span;
-        for (var y = 0; y < image.Height; y++)
+        var sourceLeft = (int)Math.Max(0L, -(long)targetX);
+        var sourceTop = (int)Math.Max(0L, -(long)targetY);
+        var sourceRight = (int)Math.Min(image.Width, (long)bounds.Width - targetX);
+        var sourceBottom = (int)Math.Min(image.Height, (long)bounds.Height - targetY);
+        if (sourceLeft >= sourceRight || sourceTop >= sourceBottom)
         {
-            var outputY = (long)targetY + y;
-            if (outputY < 0 || outputY >= bounds.Height)
-            {
-                continue;
-            }
+            return;
+        }
 
-            BlendRow(destination, bounds, image, source, targetX, (int)outputY, y, bytesPerPixel, options);
+        var destinationX = checked(targetX + sourceLeft);
+        for (var sourceY = sourceTop; sourceY < sourceBottom; sourceY++)
+        {
+            var outputY = checked(targetY + sourceY);
+            BlendRow(
+                destination,
+                bounds,
+                image,
+                source,
+                destinationX,
+                outputY,
+                sourceY,
+                sourceLeft,
+                sourceRight - sourceLeft,
+                bytesPerPixel,
+                options);
         }
     }
 
@@ -35,39 +51,41 @@ internal static class CpuGlyphBlender
         PixelBounds bounds,
         GlyphImage image,
         ReadOnlySpan<byte> source,
-        int targetX,
+        int destinationX,
         int outputY,
         int sourceY,
+        int sourceX,
+        int pixelCount,
         int bytesPerPixel,
         CpuTextRenderOptions options)
     {
-        for (var x = 0; x < image.Width; x++)
+        var sourceIndex = checked((sourceY * image.Width + sourceX) * bytesPerPixel);
+        var destinationIndex = checked((outputY * bounds.Width + destinationX) * 4);
+        if (image.Encoding == GlyphImageEncoding.ColorRgba8PremultipliedSrgb)
         {
-            var outputX = (long)targetX + x;
-            if (outputX < 0 || outputX >= bounds.Width)
-            {
-                continue;
-            }
-
-            BlendPixel(
-                destination,
-                image,
-                source,
-                checked((sourceY * image.Width + x) * bytesPerPixel),
-                checked((outputY * bounds.Width + (int)outputX) * 4),
-                options);
+            BlendColorRow(destination, source, sourceIndex, destinationIndex, pixelCount);
+            return;
         }
+
+        BlendDistanceRow(
+            destination,
+            image,
+            source,
+            sourceIndex,
+            destinationIndex,
+            pixelCount,
+            bytesPerPixel,
+            options);
     }
 
-    private static void BlendPixel(
+    private static void BlendColorRow(
         byte[] destination,
-        GlyphImage image,
         ReadOnlySpan<byte> source,
         int sourceIndex,
         int destinationIndex,
-        CpuTextRenderOptions options)
+        int pixelCount)
     {
-        if (image.Encoding == GlyphImageEncoding.ColorRgba8PremultipliedSrgb)
+        for (var i = 0; i < pixelCount; i++)
         {
             CpuPixelBlender.BlendPremultiplied(
                 destination,
@@ -76,22 +94,39 @@ internal static class CpuGlyphBlender
                 source[sourceIndex + 1],
                 source[sourceIndex + 2],
                 source[sourceIndex + 3]);
-            return;
+            sourceIndex += 4;
+            destinationIndex += 4;
         }
+    }
 
-        var alpha = CpuDistanceDecoder.Decode(
-            image.Encoding,
-            source,
-            sourceIndex,
-            image.DistanceRange);
-        var alphaByte = checked((byte)DeltaMaths.Clamp(
-            (int)DeltaMaths.Round(alpha * options.Foreground.Alpha),
-            0,
-            255));
-        CpuPixelBlender.BlendMonochrome(
-            destination,
-            destinationIndex,
-            options.Foreground,
-            alphaByte);
+    private static void BlendDistanceRow(
+        byte[] destination,
+        GlyphImage image,
+        ReadOnlySpan<byte> source,
+        int sourceIndex,
+        int destinationIndex,
+        int pixelCount,
+        int bytesPerPixel,
+        CpuTextRenderOptions options)
+    {
+        for (var i = 0; i < pixelCount; i++)
+        {
+            var alpha = CpuDistanceDecoder.Decode(
+                image.Encoding,
+                source,
+                sourceIndex,
+                image.DistanceRange);
+            var alphaByte = checked((byte)DeltaMaths.Clamp(
+                (int)DeltaMaths.Round(alpha * options.Foreground.Alpha),
+                0,
+                255));
+            CpuPixelBlender.BlendMonochrome(
+                destination,
+                destinationIndex,
+                options.Foreground,
+                alphaByte);
+            sourceIndex += bytesPerPixel;
+            destinationIndex += 4;
+        }
     }
 }

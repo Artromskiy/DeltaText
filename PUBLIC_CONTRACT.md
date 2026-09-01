@@ -176,6 +176,11 @@ the `kern` feature. It rejects explicit script or language selectors, ranged
 features, values greater than one and disabling other default features with
 `NotSupportedException`; it never silently ignores those requests.
 
+The contract also represents vertical text directions. The bundled implementation
+currently accepts `Auto`, `LeftToRight` and `RightToLeft`; vertical requests are
+mapped to the backend's automatic horizontal direction and therefore do not yet
+provide a vertical-layout guarantee.
+
 Safety flags are conservative: clusters spanning multiple source scalars,
 combining-mark clusters and Arabic joining contexts are marked
 `UnsafeToBreak | UnsafeToConcat`. `SafeToInsertTatweel` is not asserted without
@@ -287,7 +292,7 @@ for immutable payloads rather than JSON at runtime.
     ],
     "direction": "leftToRight",
     "scriptTag": "auto",
-    "language": "ru",
+    "language": null,
     "features": [
       {
         "tag": "liga",
@@ -297,10 +302,7 @@ for immutable payloads rather than JSON at runtime.
       {
         "tag": "kern",
         "value": 1,
-        "range": {
-          "startUtf16": 0,
-          "lengthUtf16": 13
-        }
+        "range": null
       }
     ]
   },

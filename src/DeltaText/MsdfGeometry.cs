@@ -450,44 +450,60 @@ internal sealed class MsdfEdgeGrid
         var cellSize = Math.Max(4, checked((int)MathF.Ceiling(distanceRange)));
         var columns = (width + cellSize - 1) / cellSize;
         var rows = (height + cellSize - 1) / cellSize;
-        var buckets = new List<int>[checked(columns * rows)];
+        var cellCount = checked(columns * rows);
+        var offsets = new int[cellCount + 1];
         for (var edgeIndex = 0; edgeIndex < edges.Length; edgeIndex++)
         {
-            var edge = edges[edgeIndex];
-            var minX = Math.Clamp((int)MathF.Floor(DeltaMaths.Min(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
-            var maxX = Math.Clamp((int)MathF.Floor(DeltaMaths.Max(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
-            var minY = Math.Clamp((int)MathF.Floor(DeltaMaths.Min(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
-            var maxY = Math.Clamp((int)MathF.Floor(DeltaMaths.Max(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
+            GetCellBounds(edges[edgeIndex], cellSize, columns, rows,
+                out var minX, out var maxX, out var minY, out var maxY);
             for (var y = minY; y <= maxY; y++)
             {
                 for (var x = minX; x <= maxX; x++)
                 {
-                    var cell = y * columns + x;
-                    var bucket = buckets[cell];
-                    if (bucket is null)
-                    {
-                        bucket = new List<int>(4);
-                        buckets[cell] = bucket;
-                    }
-
-                    bucket.Add(edgeIndex);
+                    var cell = checked(y * columns + x);
+                    offsets[cell + 1] = checked(offsets[cell + 1] + 1);
                 }
             }
         }
 
-        var offsets = new int[buckets.Length + 1];
-        for (var i = 0; i < buckets.Length; i++)
+        for (var i = 1; i < offsets.Length; i++)
         {
-            offsets[i + 1] = checked(offsets[i] + (buckets[i]?.Count ?? 0));
+            offsets[i] = checked(offsets[i] + offsets[i - 1]);
         }
 
         var edgeIndices = new int[offsets[^1]];
-        for (var i = 0; i < buckets.Length; i++)
+        var writeOffsets = new int[cellCount];
+        Array.Copy(offsets, writeOffsets, cellCount);
+        for (var edgeIndex = 0; edgeIndex < edges.Length; edgeIndex++)
         {
-            var bucket = buckets[i];
-            bucket?.CopyTo(edgeIndices, offsets[i]);
+            GetCellBounds(edges[edgeIndex], cellSize, columns, rows,
+                out var minX, out var maxX, out var minY, out var maxY);
+            for (var y = minY; y <= maxY; y++)
+            {
+                for (var x = minX; x <= maxX; x++)
+                {
+                    var cell = checked(y * columns + x);
+                    edgeIndices[writeOffsets[cell]++] = edgeIndex;
+                }
+            }
         }
 
         return new MsdfEdgeGrid(cellSize, columns, rows, offsets, edgeIndices);
+    }
+
+    private static void GetCellBounds(
+        MsdfEdge edge,
+        int cellSize,
+        int columns,
+        int rows,
+        out int minX,
+        out int maxX,
+        out int minY,
+        out int maxY)
+    {
+        minX = Math.Clamp((int)MathF.Floor(DeltaMaths.Min(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
+        maxX = Math.Clamp((int)MathF.Floor(DeltaMaths.Max(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
+        minY = Math.Clamp((int)MathF.Floor(DeltaMaths.Min(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
+        maxY = Math.Clamp((int)MathF.Floor(DeltaMaths.Max(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
     }
 }
