@@ -10,6 +10,5 @@
 - Keep MTSDF outside the current v1 capability set. Any future extension must
   update [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md) first.
 
-Ownership is in [../CONTRACTS.md](../CONTRACTS.md); cross-project acceptance is
-in [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md). The public API is defined only
-by [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md).
+Ownership and cross-project acceptance are in [../CONTRACTS.md](../CONTRACTS.md).
+The public API is defined only by [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md).

@@ -12,7 +12,6 @@ shaders.
 - [WORKFLOW.md](WORKFLOW.md) — managed/native build, tests and fixture export.
 - [DECISIONS.md](DECISIONS.md) — backend and ownership decisions.
 - [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — required legal metadata.
-- [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) — shared editor acceptance.
 - [../CONTRACTS.md](../CONTRACTS.md) — text/render ownership; project
   `TODO.md` contains the selected implementation work.
 
