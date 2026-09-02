@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   metrics:
@@ -19,8 +20,31 @@ jobs:
           dotnet-version: |
             8.x
             10.x
+      - name: Configure authenticated package source
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget add source \
+            --username Artromskiy \
+            --password "$GITHUB_TOKEN" \
+            --store-password-in-clear-text \
+            --name github \
+            https://nuget.pkg.github.com/Artromskiy/index.json
       - name: Restore
-        run: dotnet restore src/DeltaText/DeltaText.csproj
+        env:
+          SIXLABORS_FEED: https://nuget.pkg.github.com/Artromskiy/index.json
+        run: |
+          dotnet restore src/DeltaText/DeltaText.csproj \
+            -p:SixLaborsFontsPackageSource="$SIXLABORS_FEED" \
+            -p:RestoreSources="$SIXLABORS_FEED"
+      - name: Release build and managed tests
+        run: |
+          dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
+            --disable-build-servers -m:1 /p:UseSharedCompilation=false
+          dotnet build tests/DeltaText.Tests/DeltaText.Tests.csproj -c Release --no-restore \
+            --disable-build-servers -m:1 /p:UseSharedCompilation=false
+          dotnet run --project tests/DeltaText.Tests/DeltaText.Tests.csproj \
+            -c Release --no-build --no-restore
       - name: Verify formatting
         continue-on-error: true
         run: |
