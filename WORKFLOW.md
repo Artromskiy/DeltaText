@@ -112,8 +112,11 @@ equivalent substitute for DeltaText's pinned outline behavior.
 
 `DeltaText` remains a stable package while this verified fork is required for
 correct outline extraction. NuGet warning `NU5104` is suppressed only for
-this dependency; publish the fork under a stable package identity before
-removing this exception.
+this dependency. This is the remaining release blocker: publish the reviewed
+fork as a stable package (for example `SixLabors.Fonts.Delta`), verify its
+license and package contents, then replace the prerelease `PackageReference`
+and remove this suppression in the same DeltaText release. Until that happens,
+the exact fork feed and version above are required for reproducible builds.
 
 The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
