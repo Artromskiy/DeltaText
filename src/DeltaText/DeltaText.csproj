@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DeltaMaths" Version="[0.0.7, )" />
+    <PackageReference Include="DeltaMaths" Version="*" />
   </ItemGroup>
 
   <ItemGroup>
