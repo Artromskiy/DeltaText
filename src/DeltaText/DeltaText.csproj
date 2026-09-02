@@ -15,7 +15,6 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <RootNamespace>Delta.Text</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0-fork.cadda774</SixLaborsFontsPackageVersion>
     <SixLaborsFontsPackageSource Condition="'$(SixLaborsFontsPackageSource)' == ''">$(MSBuildProjectDirectory)/../../../Furnace/Packages/SixLabors.Fonts-Fork</SixLaborsFontsPackageSource>
     <RestoreSources>$(SixLaborsFontsPackageSource);$(RestoreSources)</RestoreSources>
