@@ -4,6 +4,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DeltaText</AssemblyName>
+    <PackageId>DeltaText</PackageId>
+    <Version>0.0.6</Version>
+    <Authors>Artromskiy</Authors>
+    <Description>Renderer-neutral text shaping and managed glyph image generation for .NET.</Description>
+    <PackageTags>text;shaping;fonts;glyphs;sdf;msdf</PackageTags>
+    <RepositoryUrl>https://github.com/Artromskiy/DeltaText</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <RootNamespace>Delta.Text</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
@@ -13,10 +22,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../DeltaMaths/src/DeltaMaths/DeltaMaths.csproj" />
+    <PackageReference Include="DeltaMaths" Version="[0.0.7, )" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="SixLabors.Fonts" Version="$(SixLaborsFontsPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildProjectDirectory)/../../README.md"
+          Pack="true"
+          PackagePath="README.md"
+          Visible="false" />
   </ItemGroup>
 </Project>
