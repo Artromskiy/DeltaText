@@ -78,7 +78,7 @@ The current Unicode 17 inputs were verified with SHA-256
 respectively. Width-dependent multi-line layout remains a consumer/layout
 responsibility.
 
-The pinned package `SixLabors.Fonts.Delta` version `3.1.0-fork.cadda774` supplies font
+The pinned package `SixLabors.Fonts.Delta` version `3.1.0` supplies font
 loading, OpenType shaping, fallback selection and outline callbacks. It is
 built from `Artromskiy/Fonts` commit
 `cadda774b743472e4186e96c8d779a8419276f98` (branch
@@ -102,12 +102,12 @@ GitHub Packages source configured in `NuGet.config`:
 ```bash
 dotnet restore src/DeltaText/DeltaText.csproj \
   -p:SixLaborsFontsPackageSource=https://nuget.pkg.github.com/Artromskiy/index.json \
-  -p:SixLaborsFontsPackageVersion=3.1.0-fork.cadda774
+  -p:SixLaborsFontsPackageVersion=3.1.0
 ```
 
 The feed credentials belong in the user's NuGet credential provider or
 environment, never in the repository. The source must provide
-`SixLabors.Fonts.Delta` `3.1.0-fork.cadda774`; the public `SixLabors.Fonts` `3.1.0` package is not an
+`SixLabors.Fonts.Delta` `3.1.0`; the public `SixLabors.Fonts` `3.1.0` package is not an
 equivalent substitute for DeltaText's pinned outline behavior.
 
 `SixLabors.Fonts.Delta` is a repack-only package identity: its assembly and CLR
