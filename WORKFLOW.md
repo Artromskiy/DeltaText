@@ -132,7 +132,9 @@ Linux, macOS and Windows.
 
 ## NuGet package release
 
-`DeltaText` is published as version `0.0.6` and corresponds to tag `v0.0.6`.
+The `DeltaText` release package is version `0.0.6` and corresponds to tag
+`v0.0.6`; NuGet.org publication must still be completed before external
+consumers can restore it.
 Before packing, make sure the configured feed contains the exact
 `SixLabors.Fonts.Delta` `3.1.0` package and that `SixLaborsLicenseFile` points
 to a local license file. Pack from a clean checkout into a disposable
