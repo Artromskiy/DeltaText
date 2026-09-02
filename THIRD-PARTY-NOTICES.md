@@ -2,7 +2,7 @@
 
 ## SixLabors.Fonts
 
-DeltaText uses the locally built package `SixLabors.Fonts` version
+DeltaText uses the locally built package `SixLabors.Fonts.Delta` version
 `3.1.0-fork.cadda774`, built from
 `https://github.com/Artromskiy/Fonts` commit
 `cadda774b743472e4186e96c8d779a8419276f98` on branch

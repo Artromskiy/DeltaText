@@ -78,7 +78,7 @@ The current Unicode 17 inputs were verified with SHA-256
 respectively. Width-dependent multi-line layout remains a consumer/layout
 responsibility.
 
-The pinned package `SixLabors.Fonts` version `3.1.0-fork.cadda774` supplies font
+The pinned package `SixLabors.Fonts.Delta` version `3.1.0-fork.cadda774` supplies font
 loading, OpenType shaping, fallback selection and outline callbacks. It is
 built from `Artromskiy/Fonts` commit
 `cadda774b743472e4186e96c8d779a8419276f98` (branch
@@ -107,16 +107,13 @@ dotnet restore src/DeltaText/DeltaText.csproj \
 
 The feed credentials belong in the user's NuGet credential provider or
 environment, never in the repository. The source must provide
-`SixLabors.Fonts` `3.1.0-fork.cadda774`; the public `3.1.0` package is not an
+`SixLabors.Fonts.Delta` `3.1.0-fork.cadda774`; the public `SixLabors.Fonts` `3.1.0` package is not an
 equivalent substitute for DeltaText's pinned outline behavior.
 
-`DeltaText` remains a stable package while this verified fork is required for
-correct outline extraction. NuGet warning `NU5104` is suppressed only for
-this dependency. This is the remaining release blocker: publish the reviewed
-fork as a stable package (for example `SixLabors.Fonts.Delta`), verify its
-license and package contents, then replace the prerelease `PackageReference`
-and remove this suppression in the same DeltaText release. Until that happens,
-the exact fork feed and version above are required for reproducible builds.
+`SixLabors.Fonts.Delta` is a repack-only package identity: its assembly and CLR
+namespace remain `SixLabors.Fonts`, while its package ID cannot collide with the
+public package. The repacked package must be published to the configured feed
+before a clean external restore can succeed.
 
 The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
