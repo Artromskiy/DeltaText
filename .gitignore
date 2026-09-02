@@ -2,6 +2,13 @@ bin/
 obj/
 .idea/
 .vs/
+# Generated NuGet and package output; keep only the tracked layout marker.
+artifacts/
+!artifacts/
+artifacts/*
+!artifacts/.gitkeep
+*.nupkg
+*.snupkg
 # Keep only the shared root settings; ignore nested/local VS Code state.
 **/.vscode/
 !/.vscode/
