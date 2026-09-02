@@ -13,6 +13,8 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <!-- The pinned fork is required for the verified outline behavior. -->
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
     <RootNamespace>Delta.Text</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0-fork.cadda774</SixLaborsFontsPackageVersion>

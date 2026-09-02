@@ -110,6 +110,11 @@ environment, never in the repository. The source must provide
 `SixLabors.Fonts` `3.1.0-fork.cadda774`; the public `3.1.0` package is not an
 equivalent substitute for DeltaText's pinned outline behavior.
 
+`DeltaText` remains a stable package while this verified fork is required for
+correct outline extraction. NuGet warning `NU5104` is suppressed only for
+this dependency; publish the fork under a stable package identity before
+removing this exception.
+
 The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
 the environment for local and CI builds; do not commit the file or its path:
