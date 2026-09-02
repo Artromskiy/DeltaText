@@ -10,7 +10,7 @@ service disposal. No package object or native handle crosses
 `SixLaborsTextService`; no font-backend implementation type is part of the
 cross-project contract.
 
-The pinned SixLabors.Fonts fork performs OpenType layout, fallback selection and
+The pinned `SixLabors.Fonts.Delta` 3.1.0 package performs OpenType layout, fallback selection and
 outline callbacks. Bidi formatting controls are removed from the layout metrics before
 they are paired with renderer callbacks, because controls have source mapping
 but no rendered glyph. Fallback identity comes from each returned
