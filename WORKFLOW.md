@@ -86,20 +86,19 @@ built from `Artromskiy/Fonts` commit
 coverage, SDF, MSDF and color rasterization in managed C#. There is no native
 font or MSDF DLL to copy, and no ImageSharp runtime dependency.
 
-The fork package is kept outside Git at
+The fork package is a build-only input kept outside Git at
 `Furnace/Packages/SixLabors.Fonts-Fork`. `DeltaText.csproj` prepends this local
-feed by default; another machine or CI job must provide the same package feed
-through the `SixLaborsFontsPackageSource` MSBuild property. This makes a missing
-fork package fail during restore instead of silently selecting the public
-NuGet build. The package version is selected with
-`SixLaborsFontsPackageVersion` when a verified replacement is intentionally
+feed by default; another machine or CI job that builds DeltaText from source
+must provide the same package feed through the `SixLaborsFontsPackageSource`
+MSBuild property. This makes a missing fork package fail during restore instead
+of silently selecting the public NuGet build. The package version is selected
+with `SixLaborsFontsPackageVersion` when a verified replacement is intentionally
 tested.
 
-For a clean checkout without the local fork directory, point that property at
-the authenticated feed containing the exact fork package. Do not rely on the
-repository `NuGet.config` to provide this private source: pass it explicitly
-through `SixLaborsFontsPackageSource` (GitHub Packages is one supported
-choice):
+For a clean source checkout without the local fork directory, point that
+property at an authenticated feed containing the exact fork package. Do not
+rely on the repository `NuGet.config` to provide this build-only source: pass it
+explicitly through `SixLaborsFontsPackageSource`:
 
 ```bash
 sixlabors_fonts_source='https://nuget.pkg.github.com/Artromskiy/index.json'
@@ -113,13 +112,13 @@ environment, never in the repository. The source must provide
 `SixLabors.Fonts.Delta` `3.1.0`; the public `SixLabors.Fonts` `3.1.0` package is not an
 equivalent substitute for DeltaText's pinned outline behavior.
 
-`SixLabors.Fonts.Delta` is a repack-only package identity: its assembly and CLR
-namespace remain `SixLabors.Fonts`, while its package ID cannot collide with the
-public package. It is marked `PrivateAssets=all` and is not emitted as a
-DeltaText NuGet dependency. When packing DeltaText, pass the verified fork
-`SixLabors.Fonts.dll` through `SixLaborsFontsAssemblyPath`; the pack target
-fails closed if it is missing and includes it under `lib/net8.0/` together
-with `THIRD-PARTY-NOTICES.md`.
+The published DeltaText package has no SixLabors NuGet dependency. At pack time
+the verified fork assembly is copied into the package as
+`lib/net8.0/SixLabors.Fonts.dll`, with its required notice. The pack target fails
+closed when that assembly is missing, and `eng/verify-package.sh` rejects any
+SixLabors dependency in the generated nuspec. Consumers therefore restore only
+DeltaText (and its public DeltaMaths dependency); they do not need a private
+feed or a separate SixLabors package.
 
 The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
@@ -135,13 +134,12 @@ Linux, macOS and Windows.
 
 ## NuGet package release
 
-The `DeltaText` release package is version `0.0.6` and corresponds to tag
-`v0.0.6`; NuGet.org publication must still be completed before external
-consumers can restore it.
-Before packing, make sure the configured feed contains the exact
-`SixLabors.Fonts.Delta` `3.1.0` package and that `SixLaborsLicenseFile` points
-to a local license file. Pack from a clean checkout into a disposable
-directory:
+The `DeltaText` release package is version `0.0.7` and corresponds to tag
+`v0.0.7`. This version removes the SixLabors dependency from the public nuspec
+and bundles the verified assembly instead. Before packing, make sure the
+build-only feed contains the exact `SixLabors.Fonts.Delta` `3.1.0` package and
+that `SixLaborsLicenseFile` points to a local license file. Pack from a clean
+checkout into a disposable directory:
 
 ```bash
 package_dir="$(mktemp -d "${TMPDIR:-/tmp}/deltatext-pack.XXXXXX")"
@@ -160,7 +158,7 @@ For a package build, provide the fork assembly and verify the package surface:
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
 dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore \
   -p:SixLaborsFontsAssemblyPath=/path/to/SixLabors.Fonts.dll -o "$package_dir"
-./eng/verify-package.sh "$package_dir/DeltaText.0.0.6.nupkg"
+./eng/verify-package.sh "$package_dir/DeltaText.0.0.7.nupkg"
 ```
 
 Inspect the nuspec and package contents, then publish only the exact package
@@ -170,16 +168,16 @@ shell history:
 
 ```bash
 : "${NUGET_API_KEY:?Set NUGET_API_KEY through your local credential setup}"
-dotnet nuget push "$package_dir/DeltaText.0.0.6.nupkg" \
+dotnet nuget push "$package_dir/DeltaText.0.0.7.nupkg" \
   --source https://api.nuget.org/v3/index.json \
   --api-key "$NUGET_API_KEY" \
   --skip-duplicate \
   --no-symbols
 ```
 
-The private `SixLabors.Fonts.Delta` dependency must be available to consumers
-through their configured authenticated feed; publishing `DeltaText` does not
-replace that dependency.
+The private `SixLabors.Fonts.Delta` package is needed only while building the
+source project. It is not published as a DeltaText dependency and must never be
+requested by a DeltaText consumer.
 
 ## Code metrics
 

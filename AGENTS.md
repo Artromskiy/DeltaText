@@ -16,7 +16,9 @@ shaders.
 - [../CONTRACTS.md](../CONTRACTS.md) — text/render ownership; project
   `TODO.md` contains the selected implementation work.
 
-SixLabors.Fonts is the only font-processing dependency. Pixel storage,
+SixLabors.Fonts is the only build-time font-processing dependency; the released
+DeltaText package bundles its assembly and exposes no SixLabors package
+dependency. Pixel storage,
 coverage/SDF/MSDF/color rasterization and returned image ownership stay in
 managed DeltaText code. ImageSharp, FreeType, HarfBuzz native assets and a
 native MSDF bridge are not runtime dependencies.
