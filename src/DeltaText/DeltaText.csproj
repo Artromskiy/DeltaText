@@ -18,6 +18,7 @@
     <SixLaborsFontsPackageId Condition="'$(SixLaborsFontsPackageId)' == ''">SixLabors.Fonts.Delta</SixLaborsFontsPackageId>
     <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0</SixLaborsFontsPackageVersion>
     <SixLaborsFontsPackageSource Condition="'$(SixLaborsFontsPackageSource)' == ''">$(MSBuildProjectDirectory)/../../../Furnace/Packages/SixLabors.Fonts-Fork</SixLaborsFontsPackageSource>
+    <SixLaborsFontsAssemblyPath Condition="'$(SixLaborsFontsAssemblyPath)' == ''"></SixLaborsFontsAssemblyPath>
     <RestoreSources>$(SixLaborsFontsPackageSource);$(RestoreSources)</RestoreSources>
   </PropertyGroup>
 
@@ -26,7 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="$(SixLaborsFontsPackageId)" Version="$(SixLaborsFontsPackageVersion)" />
+    <PackageReference Include="$(SixLaborsFontsPackageId)" Version="$(SixLaborsFontsPackageVersion)" PrivateAssets="all" />
+    <None Include="$(SixLaborsFontsAssemblyPath)" Pack="true" PackagePath="lib/net8.0/SixLabors.Fonts.dll" Visible="false" Condition="Exists('$(SixLaborsFontsAssemblyPath)')" />
+    <None Include="$(MSBuildProjectDirectory)/../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="THIRD-PARTY-NOTICES.md" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,4 +38,9 @@
           PackagePath="README.md"
           Visible="false" />
   </ItemGroup>
+
+  <Target Name="ValidateBundledSixLaborsAssembly" BeforeTargets="Pack">
+    <Error Condition="'$(SixLaborsFontsAssemblyPath)' == ''" Text="SixLaborsFontsAssemblyPath is required when packing DeltaText. Pass the verified fork SixLabors.Fonts.dll explicitly." />
+    <Error Condition="'$(SixLaborsFontsAssemblyPath)' != '' And !Exists('$(SixLaborsFontsAssemblyPath)')" Text="SixLaborsFontsAssemblyPath does not exist: $(SixLaborsFontsAssemblyPath)" />
+  </Target>
 </Project>

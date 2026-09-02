@@ -78,7 +78,7 @@ The current Unicode 17 inputs were verified with SHA-256
 respectively. Width-dependent multi-line layout remains a consumer/layout
 responsibility.
 
-The pinned package `SixLabors.Fonts.Delta` version `3.1.0` supplies font
+The compile-time package `SixLabors.Fonts.Delta` version `3.1.0` supplies font
 loading, OpenType shaping, fallback selection and outline callbacks. It is
 built from `Artromskiy/Fonts` commit
 `cadda774b743472e4186e96c8d779a8419276f98` (branch
@@ -115,8 +115,11 @@ equivalent substitute for DeltaText's pinned outline behavior.
 
 `SixLabors.Fonts.Delta` is a repack-only package identity: its assembly and CLR
 namespace remain `SixLabors.Fonts`, while its package ID cannot collide with the
-public package. The repacked package must be published to the configured feed
-before a clean external restore can succeed.
+public package. It is marked `PrivateAssets=all` and is not emitted as a
+DeltaText NuGet dependency. When packing DeltaText, pass the verified fork
+`SixLabors.Fonts.dll` through `SixLaborsFontsAssemblyPath`; the pack target
+fails closed if it is missing and includes it under `lib/net8.0/` together
+with `THIRD-PARTY-NOTICES.md`.
 
 The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
@@ -149,6 +152,15 @@ dotnet restore src/DeltaText/DeltaText.csproj \
   -p:SixLaborsFontsPackageVersion=3.1.0
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
 dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore -o "$package_dir"
+```
+
+For a package build, provide the fork assembly and verify the package surface:
+
+```bash
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore \
+  -p:SixLaborsFontsAssemblyPath=/path/to/SixLabors.Fonts.dll -o "$package_dir"
+./eng/verify-package.sh "$package_dir/DeltaText.0.0.6.nupkg"
 ```
 
 Inspect the nuspec and package contents, then publish only the exact package
