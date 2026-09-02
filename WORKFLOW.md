@@ -95,6 +95,21 @@ NuGet build. The package version is selected with
 `SixLaborsFontsPackageVersion` when a verified replacement is intentionally
 tested.
 
+For a clean checkout without the local fork directory, point that property at
+the authenticated feed containing the exact fork package. For example, with a
+GitHub Packages source configured in `NuGet.config`:
+
+```bash
+dotnet restore src/DeltaText/DeltaText.csproj \
+  -p:SixLaborsFontsPackageSource=https://nuget.pkg.github.com/Artromskiy/index.json \
+  -p:SixLaborsFontsPackageVersion=3.1.0-fork.cadda774
+```
+
+The feed credentials belong in the user's NuGet credential provider or
+environment, never in the repository. The source must provide
+`SixLabors.Fonts` `3.1.0-fork.cadda774`; the public `3.1.0` package is not an
+equivalent substitute for DeltaText's pinned outline behavior.
+
 The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
 the environment for local and CI builds; do not commit the file or its path:
