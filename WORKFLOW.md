@@ -96,12 +96,15 @@ NuGet build. The package version is selected with
 tested.
 
 For a clean checkout without the local fork directory, point that property at
-the authenticated feed containing the exact fork package. For example, with a
-GitHub Packages source configured in `NuGet.config`:
+the authenticated feed containing the exact fork package. Do not rely on the
+repository `NuGet.config` to provide this private source: pass it explicitly
+through `SixLaborsFontsPackageSource` (GitHub Packages is one supported
+choice):
 
 ```bash
+sixlabors_fonts_source='https://nuget.pkg.github.com/Artromskiy/index.json'
 dotnet restore src/DeltaText/DeltaText.csproj \
-  -p:SixLaborsFontsPackageSource=https://nuget.pkg.github.com/Artromskiy/index.json \
+  -p:SixLaborsFontsPackageSource="$sixlabors_fonts_source" \
   -p:SixLaborsFontsPackageVersion=3.1.0
 ```
 
@@ -137,9 +140,10 @@ directory:
 
 ```bash
 package_dir="$(mktemp -d "${TMPDIR:-/tmp}/deltatext-pack.XXXXXX")"
+sixlabors_fonts_source='https://nuget.pkg.github.com/Artromskiy/index.json'
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
 dotnet restore src/DeltaText/DeltaText.csproj \
-  -p:SixLaborsFontsPackageSource=https://nuget.pkg.github.com/Artromskiy/index.json \
+  -p:SixLaborsFontsPackageSource="$sixlabors_fonts_source" \
   -p:SixLaborsFontsPackageVersion=3.1.0
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
 dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore -o "$package_dir"
