@@ -127,6 +127,42 @@ The current local license is kept outside Git at
 `Furnace/Licenses/SixLabors.lic`. The managed build is otherwise the same on
 Linux, macOS and Windows.
 
+## NuGet package release
+
+`DeltaText` is published as version `0.0.6` and corresponds to tag `v0.0.6`.
+Before packing, make sure the configured feed contains the exact
+`SixLabors.Fonts.Delta` `3.1.0` package and that `SixLaborsLicenseFile` points
+to a local license file. Pack from a clean checkout into a disposable
+directory:
+
+```bash
+package_dir="$(mktemp -d "${TMPDIR:-/tmp}/deltatext-pack.XXXXXX")"
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+dotnet restore src/DeltaText/DeltaText.csproj \
+  -p:SixLaborsFontsPackageSource=https://nuget.pkg.github.com/Artromskiy/index.json \
+  -p:SixLaborsFontsPackageVersion=3.1.0
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore -o "$package_dir"
+```
+
+Inspect the nuspec and package contents, then publish only the exact package
+version to NuGet.org. Supply the key through a credential provider or an
+already-exported environment variable; never put it in this repository or in
+shell history:
+
+```bash
+: "${NUGET_API_KEY:?Set NUGET_API_KEY through your local credential setup}"
+dotnet nuget push "$package_dir/DeltaText.0.0.6.nupkg" \
+  --source https://api.nuget.org/v3/index.json \
+  --api-key "$NUGET_API_KEY" \
+  --skip-duplicate \
+  --no-symbols
+```
+
+The private `SixLabors.Fonts.Delta` dependency must be available to consumers
+through their configured authenticated feed; publishing `DeltaText` does not
+replace that dependency.
+
 ## Code metrics
 
 Run the same analyzer/code-metrics build locally and in the manual GitHub
