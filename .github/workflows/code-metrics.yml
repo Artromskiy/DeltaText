@@ -20,26 +20,10 @@ jobs:
           dotnet-version: |
             8.x
             10.x
-      - name: Configure authenticated package source
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          dotnet nuget add source \
-            --username Artromskiy \
-            --password "$GITHUB_TOKEN" \
-            --store-password-in-clear-text \
-            --name github \
-            https://nuget.pkg.github.com/Artromskiy/index.json
       - name: Restore
-        env:
-          SIXLABORS_FEED: https://nuget.pkg.github.com/Artromskiy/index.json
         run: |
-          dotnet restore src/DeltaText/DeltaText.csproj \
-            -p:SixLaborsFontsPackageSource="$SIXLABORS_FEED" \
-            -p:RestoreSources="$SIXLABORS_FEED"
-          dotnet restore tests/DeltaText.Tests/DeltaText.Tests.csproj \
-            -p:SixLaborsFontsPackageSource="$SIXLABORS_FEED" \
-            -p:RestoreSources="$SIXLABORS_FEED"
+          dotnet restore src/DeltaText/DeltaText.csproj
+          dotnet restore tests/DeltaText.Tests/DeltaText.Tests.csproj
       - name: Release build and managed tests
         run: |
           dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
