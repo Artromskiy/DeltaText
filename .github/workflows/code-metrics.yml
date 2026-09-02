@@ -37,6 +37,9 @@ jobs:
           dotnet restore src/DeltaText/DeltaText.csproj \
             -p:SixLaborsFontsPackageSource="$SIXLABORS_FEED" \
             -p:RestoreSources="$SIXLABORS_FEED"
+          dotnet restore tests/DeltaText.Tests/DeltaText.Tests.csproj \
+            -p:SixLaborsFontsPackageSource="$SIXLABORS_FEED" \
+            -p:RestoreSources="$SIXLABORS_FEED"
       - name: Release build and managed tests
         run: |
           dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
