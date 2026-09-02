@@ -30,7 +30,7 @@ done
 while IFS= read -r directory_path; do
     directory_name="${directory_path#"$repo_root/"}"
     case "$directory_name" in
-        .github|src|tests|benchmarks|samples|probes|playground|tools|adr|docs|eng|artifacts|assets)
+        .github|.vscode|src|tests|benchmarks|samples|probes|playground|tools|adr|docs|eng|artifacts|assets)
             ;;
         *)
             printf 'layout: unexpected top-level directory: %s\n' "$directory_name" >&2
