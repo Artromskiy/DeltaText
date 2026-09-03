@@ -56,7 +56,7 @@ convenience operation and still shapes on every call; callers should retain
 Coverage, SDF, MSDF and color rasterization are all managed. MSDF consumes the
 SixLabors.Fonts outline callbacks, flattens curves to a bounded pixel tolerance
 and generates deterministic RGB8 pixels. Its geometric values use
-`Delta.Maths.float2` and `Delta.Maths.DeltaMaths`; the only
+`Delta.float2` and `Delta.Maths`; the only
 `System.Numerics.Vector2` reference is the private callback adapter required by
 SixLabors.Fonts. ImageSharp, SkiaSharp, FreeType and native MSDF assets are not
 runtime dependencies. The CPU compositor computes the source/destination
