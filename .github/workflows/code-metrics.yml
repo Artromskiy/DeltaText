@@ -36,13 +36,17 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p artifacts/code-metrics
-          dotnet format whitespace --folder . --exclude ./obj ./bin --verify-no-changes --verbosity minimal 2>&1 | tee artifacts/code-metrics/format.log
+          dotnet format whitespace --folder . --exclude ./obj --exclude ./bin --exclude ./artifacts --verify-no-changes --verbosity minimal 2>&1 | tee artifacts/code-metrics/format.log
       - name: Build and collect analyzer metrics
         shell: bash
         run: |
           set -uo pipefail
           mkdir -p artifacts/code-metrics; set +e
-          ./eng/code-metrics.sh 2>&1 | tee artifacts/code-metrics/build.log
+          dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
+            --disable-build-servers -m:1 /p:UseSharedCompilation=false \
+            /p:AnalysisMode=AllEnabledByDefault \
+            "/p:ErrorLog=${GITHUB_WORKSPACE}/artifacts/code-metrics/diagnostics.sarif,version=2.1" \
+            2>&1 | tee artifacts/code-metrics/build.log
           status=${PIPESTATUS[0]}; set -e
           echo "Build exit code: $status" | tee artifacts/code-metrics/summary.txt; exit 0
       - name: Upload metrics
