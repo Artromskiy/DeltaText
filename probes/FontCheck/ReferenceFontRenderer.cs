@@ -1,4 +1,5 @@
 using System.Numerics;
+using Delta.Maths;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
 using ImageRgba32 = SixLabors.ImageSharp.PixelFormats.Rgba32;
@@ -162,16 +163,16 @@ internal sealed class ReferenceGlyphRenderer : IGlyphRenderer
         for (var i = 0; i < _glyphs.Count; i++)
         {
             var glyph = _glyphs[i];
-            left = MathF.Min(left, glyph.Bounds.Left);
-            top = MathF.Min(top, glyph.Bounds.Top);
-            right = MathF.Max(right, glyph.Bounds.Right);
-            bottom = MathF.Max(bottom, glyph.Bounds.Bottom);
+            left = DeltaMaths.Min(left, glyph.Bounds.Left);
+            top = DeltaMaths.Min(top, glyph.Bounds.Top);
+            right = DeltaMaths.Max(right, glyph.Bounds.Right);
+            bottom = DeltaMaths.Max(bottom, glyph.Bounds.Bottom);
         }
 
-        var pixelLeft = (int)MathF.Floor(left);
-        var pixelTop = (int)MathF.Floor(top);
-        var pixelRight = (int)MathF.Ceiling(right);
-        var pixelBottom = (int)MathF.Ceiling(bottom);
+        var pixelLeft = (int)DeltaMaths.Floor(left);
+        var pixelTop = (int)DeltaMaths.Floor(top);
+        var pixelRight = (int)DeltaMaths.Ceil(right);
+        var pixelBottom = (int)DeltaMaths.Ceil(bottom);
         var width = checked(pixelRight - pixelLeft);
         var height = checked(pixelBottom - pixelTop);
         if (width <= 0 || height <= 0)
@@ -263,7 +264,7 @@ internal sealed class ReferenceGlyphRenderer : IGlyphRenderer
     {
         var toleranceSquared = FlatteningTolerance * FlatteningTolerance;
         if (depth >= MaximumFlatteningDepth
-            || MathF.Max(
+            || DeltaMaths.Max(
                 DistanceToLineSquared(control1, start, end),
                 DistanceToLineSquared(control2, start, end)) <= toleranceSquared)
         {

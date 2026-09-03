@@ -17,8 +17,8 @@ internal static class ManagedGlyphRasterizer
         Rgba32 foreground)
     {
         var hasDistance = mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf;
-        var padding = hasDistance ? checked((int)MathF.Ceiling(distanceRange)) : 0;
-        var pixelSize = Math.Max(1, (int)MathF.Ceiling(pixelsPerEm));
+        var padding = hasDistance ? checked((int)DeltaMaths.Ceil(distanceRange)) : 0;
+        var pixelSize = DeltaMaths.Max(1, (int)DeltaMaths.Ceil(pixelsPerEm));
         var effectiveRange = hasDistance ? distanceRange : 1;
         var layers = outline.Layers;
         var first = FindFirstLayer(layers);
@@ -145,7 +145,7 @@ internal static class ManagedGlyphRasterizer
 
     private static void BlendColor(byte[] pixels, ReadOnlySpan<byte> coverage, Rgba32 color, int width, int height)
     {
-        var count = Math.Min(coverage.Length, checked(width * height));
+        var count = DeltaMaths.Min(coverage.Length, checked(width * height));
         for (var i = 0; i < count; i++)
         {
             var sourceAlpha = coverage[i] * color.Alpha / 255;
@@ -157,10 +157,10 @@ internal static class ManagedGlyphRasterizer
             var offset = i * 4;
             var destinationAlpha = pixels[offset + 3];
             var inverse = 255 - sourceAlpha;
-            pixels[offset] = (byte)Math.Clamp((color.Red * sourceAlpha + pixels[offset] * inverse) / 255, 0, 255);
-            pixels[offset + 1] = (byte)Math.Clamp((color.Green * sourceAlpha + pixels[offset + 1] * inverse) / 255, 0, 255);
-            pixels[offset + 2] = (byte)Math.Clamp((color.Blue * sourceAlpha + pixels[offset + 2] * inverse) / 255, 0, 255);
-            pixels[offset + 3] = (byte)Math.Clamp(sourceAlpha + destinationAlpha * inverse / 255, 0, 255);
+            pixels[offset] = (byte)DeltaMaths.Clamp((color.Red * sourceAlpha + pixels[offset] * inverse) / 255, 0, 255);
+            pixels[offset + 1] = (byte)DeltaMaths.Clamp((color.Green * sourceAlpha + pixels[offset + 1] * inverse) / 255, 0, 255);
+            pixels[offset + 2] = (byte)DeltaMaths.Clamp((color.Blue * sourceAlpha + pixels[offset + 2] * inverse) / 255, 0, 255);
+            pixels[offset + 3] = (byte)DeltaMaths.Clamp(sourceAlpha + destinationAlpha * inverse / 255, 0, 255);
         }
     }
 

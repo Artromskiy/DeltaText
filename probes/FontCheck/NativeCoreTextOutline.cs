@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Text;
+using Delta.Maths;
 using Delta.Text;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
@@ -71,14 +72,14 @@ internal static class OutlineComparison
         var firstAtMaximum = default(OutlinePoint);
         var secondAtMaximum = default(OutlinePoint);
         var transformedSecondAtMaximum = default(OutlinePoint);
-        var pointCount = Math.Min(firstPoints.Length, secondPoints.Length);
+        var pointCount = DeltaMaths.Min(firstPoints.Length, secondPoints.Length);
         for (var index = 0; index < pointCount; index++)
         {
             var transformed = Transform(secondPoints[index], mirrorY);
             transformed = new OutlinePoint(transformed.X + offset.X, transformed.Y + offset.Y);
-            var error = MathF.Max(
-                MathF.Abs(firstPoints[index].X - transformed.X),
-                MathF.Abs(firstPoints[index].Y - transformed.Y));
+            var error = DeltaMaths.Max(
+                DeltaMaths.Abs(firstPoints[index].X - transformed.X),
+                DeltaMaths.Abs(firstPoints[index].Y - transformed.Y));
             if (error <= maximumError)
             {
                 continue;
@@ -172,9 +173,9 @@ internal static class OutlineComparison
         var transformedCoreBounds = BoundsOf(TransformPoints(coreTextPoints, mirrorY: true, offset));
         bounds = Union(bounds, transformedCoreBounds);
         var padding = 32f;
-        var scale = MathF.Min(
-            (width - 2f * padding) / MathF.Max(bounds.Width, 1f),
-            (height - 2f * padding) / MathF.Max(bounds.Height, 1f));
+        var scale = DeltaMaths.Min(
+            (width - 2f * padding) / DeltaMaths.Max(bounds.Width, 1f),
+            (height - 2f * padding) / DeltaMaths.Max(bounds.Height, 1f));
         var pixels = new byte[checked(width * height * 4)];
         for (var i = 0; i < pixels.Length; i += 4)
         {
@@ -321,8 +322,8 @@ internal static class OutlineComparison
         for (var i = 0; i < expected.Length; i++)
         {
             var point = Transform(actual[i], mirrorY);
-            maximum = MathF.Max(maximum, MathF.Abs(expected[i].X - (point.X + offsetX)));
-            maximum = MathF.Max(maximum, MathF.Abs(expected[i].Y - (point.Y + offsetY)));
+            maximum = DeltaMaths.Max(maximum, DeltaMaths.Abs(expected[i].X - (point.X + offsetX)));
+            maximum = DeltaMaths.Max(maximum, DeltaMaths.Abs(expected[i].Y - (point.Y + offsetY)));
         }
 
         return maximum;
@@ -518,10 +519,10 @@ internal static class OutlineComparison
 
     private static OutlineBounds Union(OutlineBounds first, OutlineBounds second)
         => new(
-            MathF.Min(first.Left, second.Left),
-            MathF.Min(first.Top, second.Top),
-            MathF.Max(first.Right, second.Right),
-            MathF.Max(first.Bottom, second.Bottom));
+            DeltaMaths.Min(first.Left, second.Left),
+            DeltaMaths.Min(first.Top, second.Top),
+            DeltaMaths.Max(first.Right, second.Right),
+            DeltaMaths.Max(first.Bottom, second.Bottom));
 
     private static void DrawPaths(
         byte[] pixels,
@@ -564,16 +565,16 @@ internal static class OutlineComparison
         byte green,
         byte blue)
     {
-        var distance = MathF.Sqrt(
+        var distance = DeltaMaths.Sqrt(
             (second.X - first.X) * (second.X - first.X)
             + (second.Y - first.Y) * (second.Y - first.Y));
-        var steps = Math.Max(1, (int)MathF.Ceiling(distance * 2f));
+        var steps = DeltaMaths.Max(1, (int)DeltaMaths.Ceil(distance * 2f));
         for (var step = 0; step <= steps; step++)
         {
             var amount = step / (float)steps;
             SetPixel(pixels, width, height,
-                (int)MathF.Round(first.X + (second.X - first.X) * amount),
-                (int)MathF.Round(first.Y + (second.Y - first.Y) * amount),
+                (int)DeltaMaths.Round(first.X + (second.X - first.X) * amount),
+                (int)DeltaMaths.Round(first.Y + (second.Y - first.Y) * amount),
                 red, green, blue);
         }
     }
@@ -645,10 +646,10 @@ internal static class OutlineComparison
             throw new InvalidDataException("Outline contains a non-finite point.");
         }
 
-        left = MathF.Min(left, point.X);
-        top = MathF.Min(top, point.Y);
-        right = MathF.Max(right, point.X);
-        bottom = MathF.Max(bottom, point.Y);
+        left = DeltaMaths.Min(left, point.X);
+        top = DeltaMaths.Min(top, point.Y);
+        right = DeltaMaths.Max(right, point.X);
+        bottom = DeltaMaths.Max(bottom, point.Y);
     }
 }
 

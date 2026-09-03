@@ -43,6 +43,25 @@ dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
 dotnet run --project tests/DeltaText.Tests/DeltaText.Tests.csproj -c Release
 ```
 
+## Delta.Maths consumer boundary
+
+DeltaText, its tests and its bounded FontCheck/UnicodeConformance probes use
+`Delta.Maths` for mathematical operations. Keep the provider implementation's
+platform bridge isolated in DeltaMaths; do not reintroduce direct
+`System.Math`/`System.MathF` calls in this repository's consumer code. Run this
+bounded gate before a contract or performance change:
+
+```bash
+if rg -n '\b(Math|MathF)\.' src tests probes samples benchmarks -g '*.cs'; then
+  echo 'Direct System.Math/System.MathF usage is not allowed in DeltaText consumers.' >&2
+  exit 1
+fi
+```
+
+The provider exception is limited to DeltaMaths's own implementation files
+`Maths.cs`, `Maths.half.cs` and `MathCompat.cs`; those files are outside this
+repository and implement the scalar primitives consumed here.
+
 Headless Unicode/shaping/render check (bounded; writes fixture PNGs and JSON):
 
 ```bash
@@ -87,13 +106,13 @@ coverage, SDF, MSDF and color rasterization in managed C#. There is no native
 font or MSDF DLL to copy, and no ImageSharp runtime dependency.
 
 The fork package is a build-only input kept outside Git at
-`Furnace/Packages/SixLabors.Fonts-Fork`. `DeltaText.csproj` prepends this local
-feed by default; another machine or CI job that builds DeltaText from source
-must provide the same package feed through the `SixLaborsFontsPackageSource`
-MSBuild property. This makes a missing fork package fail during restore instead
-of silently selecting the public NuGet build. The package version is selected
-with `SixLaborsFontsPackageVersion` when a verified replacement is intentionally
-tested.
+`Furnace/Packages/SixLabors.Fonts-Fork`. `DeltaText.csproj` and the dev-only
+tests/probes prepend this local feed by default; another machine or CI job that
+builds the source, tests or probes must provide the same package feed through
+the `SixLaborsFontsPackageSource` MSBuild property. This makes a missing fork
+package fail during restore instead of silently selecting the public NuGet
+build. The package version is selected with `SixLaborsFontsPackageVersion` when
+a verified replacement is intentionally tested.
 
 For a clean source checkout without the local fork directory, point that
 property at an authenticated feed containing the exact fork package. Do not
@@ -176,8 +195,8 @@ dotnet nuget push "$package_dir/DeltaText.0.0.7.nupkg" \
 ```
 
 The private `SixLabors.Fonts.Delta` package is needed only while building the
-source project. It is not published as a DeltaText dependency and must never be
-requested by a DeltaText consumer.
+source project and its dev-only tests/probes. It is not published as a
+DeltaText dependency and must never be requested by a DeltaText consumer.
 
 ## Code metrics
 

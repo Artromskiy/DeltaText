@@ -23,8 +23,8 @@ internal static class MsdfRasterizer
                 var green = rangeSquared;
                 var blue = rangeSquared;
                 var nearest = rangeSquared;
-                var cellX = Math.Clamp(x / grid.CellSize, 0, grid.Columns - 1);
-                var cellY = Math.Clamp(y / grid.CellSize, 0, grid.Rows - 1);
+                var cellX = DeltaMaths.Clamp(x / grid.CellSize, 0, grid.Columns - 1);
+                var cellY = DeltaMaths.Clamp(y / grid.CellSize, 0, grid.Rows - 1);
                 for (var offsetY = -1; offsetY <= 1; offsetY++)
                 {
                     var neighborY = cellY + offsetY;
@@ -99,7 +99,7 @@ internal static class MsdfRasterizer
         }
 
         var projection = float2.Dot(point - start, edge) / lengthSquared;
-        projection = Math.Clamp(projection, 0, 1);
+        projection = DeltaMaths.Clamp(projection, 0, 1);
         return float2.SqrLength(point - (start + edge * projection));
     }
 
@@ -129,7 +129,7 @@ internal static class MsdfEncoder
 {
     internal static byte Encode(float signedDistance, float distanceRange)
     {
-        var normalized = Math.Clamp(0.5f + signedDistance / (2f * distanceRange), 0, 1);
-        return (byte)Math.Clamp((int)MathF.Round(normalized * 255f), 0, 255);
+        var normalized = DeltaMaths.Clamp(0.5f + signedDistance / (2f * distanceRange), 0, 1);
+        return (byte)DeltaMaths.Clamp((int)DeltaMaths.Round(normalized * 255f), 0, 255);
     }
 }

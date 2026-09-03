@@ -1,3 +1,4 @@
+using Delta.Maths;
 using Delta.Text;
 using Delta.Text.Contract;
 
@@ -214,12 +215,12 @@ internal static class PixelComparison
             var pixelError = 0;
             for (var channel = 0; channel < 4; channel++)
             {
-                pixelError = Math.Max(pixelError, Math.Abs(oursPixels[offset + channel] - native.Pixels[offset + channel]));
+                pixelError = DeltaMaths.Max(pixelError, DeltaMaths.Abs(oursPixels[offset + channel] - native.Pixels[offset + channel]));
             }
 
             histogram[pixelError]++;
             totalAbsoluteError += pixelError;
-            maximumError = Math.Max(maximumError, pixelError);
+            maximumError = DeltaMaths.Max(maximumError, pixelError);
             mismatchedPixels += pixelError == 0 ? 0 : 1;
         }
 
@@ -277,8 +278,8 @@ internal static class PixelComparison
         int offsetY)
     {
         var histogram = new long[256];
-        var width = Math.Max(actualWidth, expected.Width + Math.Abs(offsetX));
-        var height = Math.Max(actualHeight, expected.Height + Math.Abs(offsetY));
+        var width = DeltaMaths.Max(actualWidth, expected.Width + DeltaMaths.Abs(offsetX));
+        var height = DeltaMaths.Max(actualHeight, expected.Height + DeltaMaths.Abs(offsetY));
         var totalAbsoluteError = 0L;
         var mismatchedPixels = 0L;
         var maximumError = 0;
@@ -288,10 +289,10 @@ internal static class PixelComparison
             {
                 var actualAlpha = GetActualAlpha(actualPixels, actualWidth, actualHeight, x, y);
                 var expectedAlpha = GetExpectedAlpha(expected, x - offsetX, y - offsetY);
-                var error = Math.Abs(actualAlpha - expectedAlpha);
+                var error = DeltaMaths.Abs(actualAlpha - expectedAlpha);
                 histogram[error]++;
                 totalAbsoluteError += error;
-                maximumError = Math.Max(maximumError, error);
+                maximumError = DeltaMaths.Max(maximumError, error);
                 mismatchedPixels += error == 0 ? 0 : 1;
             }
         }
@@ -359,7 +360,7 @@ internal sealed class PixelAccumulator
         _comparedPixels += measurement.ComparedPixels;
         _mismatchedPixels += measurement.MismatchedPixels;
         _totalAbsoluteError += measurement.TotalAbsoluteError;
-        _maximumError = Math.Max(_maximumError, measurement.MaximumError);
+        _maximumError = DeltaMaths.Max(_maximumError, measurement.MaximumError);
         if (_caseCount == 1)
         {
             _firstOffsetX = measurement.OffsetX;
@@ -378,7 +379,7 @@ internal sealed class PixelAccumulator
             _exactCaseCount,
             _comparedPixels,
             _mismatchedPixels,
-            _totalAbsoluteError / (double)Math.Max(1, _comparedPixels),
+            _totalAbsoluteError / (double)DeltaMaths.Max(1, _comparedPixels),
             PixelComparisonPercentile(_histogram, 95),
             _maximumError,
             _firstOffsetX,

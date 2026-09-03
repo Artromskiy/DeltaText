@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using Delta.Maths;
 using SkiaSharp;
 
 namespace FontCheck;
@@ -151,8 +152,8 @@ internal static class SkiaProbe
     private static SkiaBitmap Render(SKPath path, SKRect bounds)
     {
         const int padding = 32;
-        var width = checked((int)MathF.Ceiling(bounds.Width) + padding * 2);
-        var height = checked((int)MathF.Ceiling(bounds.Height) + padding * 2);
+        var width = checked((int)DeltaMaths.Ceil(bounds.Width) + padding * 2);
+        var height = checked((int)DeltaMaths.Ceil(bounds.Height) + padding * 2);
         if (width <= 0 || height <= 0)
         {
             throw new InvalidDataException("SkiaSharp returned an empty glyph path bounds.");

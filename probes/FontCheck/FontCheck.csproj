@@ -7,10 +7,14 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>FontCheck</AssemblyName>
     <RootNamespace>FontCheck</RootNamespace>
+    <SixLaborsFontsPackageSource Condition="'$(SixLaborsFontsPackageSource)' == ''">$(MSBuildProjectDirectory)/../../../Furnace/Packages/SixLabors.Fonts-Fork</SixLaborsFontsPackageSource>
+    <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0</SixLaborsFontsPackageVersion>
+    <RestoreSources>$(SixLaborsFontsPackageSource);$(RestoreSources)</RestoreSources>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/DeltaText/DeltaText.csproj" />
+    <PackageReference Include="SixLabors.Fonts.Delta" Version="$(SixLaborsFontsPackageVersion)" PrivateAssets="all" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.8" />

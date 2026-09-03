@@ -1,3 +1,4 @@
+using Delta.Maths;
 using Delta.Text.Contract;
 using SixLabors.Fonts;
 using ContractFontMetrics = Delta.Text.Contract.FontMetrics;
@@ -66,7 +67,7 @@ public class SixLaborsTextService : ITextService
             return new ContractFontMetrics(
                 face.Metrics.UnitsPerEm,
                 horizontal.Ascender * scale,
-                Math.Max(0, -horizontal.Descender) * scale,
+                DeltaMaths.Max(0f, -horizontal.Descender) * scale,
                 horizontal.LineGap * scale,
                 face.Metrics.UnderlinePosition * scale,
                 face.Metrics.UnderlineThickness * scale);

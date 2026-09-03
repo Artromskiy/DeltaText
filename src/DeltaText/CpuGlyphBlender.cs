@@ -18,10 +18,10 @@ internal static class CpuGlyphBlender
             placement.Origin.y + image.PlaneBounds.Top - bounds.Top));
         var bytesPerPixel = CpuGlyphImageFormat.GetBytesPerPixel(image.Encoding);
         var source = image.Pixels.Span;
-        var sourceLeft = (int)Math.Max(0L, -(long)targetX);
-        var sourceTop = (int)Math.Max(0L, -(long)targetY);
-        var sourceRight = (int)Math.Min(image.Width, (long)bounds.Width - targetX);
-        var sourceBottom = (int)Math.Min(image.Height, (long)bounds.Height - targetY);
+        var sourceLeft = (int)Max(0L, -(long)targetX);
+        var sourceTop = (int)Max(0L, -(long)targetY);
+        var sourceRight = (int)Min(image.Width, (long)bounds.Width - targetX);
+        var sourceBottom = (int)Min(image.Height, (long)bounds.Height - targetY);
         if (sourceLeft >= sourceRight || sourceTop >= sourceBottom)
         {
             return;
@@ -129,4 +129,8 @@ internal static class CpuGlyphBlender
             destinationIndex += 4;
         }
     }
+
+    private static long Min(long left, long right) => left <= right ? left : right;
+
+    private static long Max(long left, long right) => left >= right ? left : right;
 }

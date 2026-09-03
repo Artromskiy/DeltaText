@@ -9,6 +9,7 @@ namespace Delta.Text;
 /// <summary>Collects SixLabors outline callbacks into DeltaText's internal geometry.</summary>
 internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 {
+    private const float Pi = 3.14159265358979323846f;
     private readonly bool _captureOutlines;
     private readonly List<GlyphLayer> _layers = new();
     private readonly List<CapturedGlyph> _glyphs = new();
@@ -191,8 +192,8 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
         var end = new float2(point.X, point.Y);
         var start = new float2(startX, startY);
-        var radiiX = MathF.Abs(radiusX);
-        var radiiY = MathF.Abs(radiusY);
+        var radiiX = DeltaMaths.Abs(radiusX);
+        var radiiY = DeltaMaths.Abs(radiusY);
         if (radiiX <= float.Epsilon || radiiY <= float.Epsilon)
         {
             contour.LineTo(end.x, end.y);
@@ -234,7 +235,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             - radiiXSquared * prime.y * prime.y
             - radiiYSquared * prime.x * prime.x;
         var sign = largeArc == sweep ? -1f : 1f;
-        var coefficient = sign * DeltaMaths.Sqrt(MathF.Max(0f, numerator / denominator));
+        var coefficient = sign * DeltaMaths.Sqrt(DeltaMaths.Max(0f, numerator / denominator));
         var centerPrime = new float2(
             coefficient * radiiX * prime.y / radiiY,
             coefficient * -radiiY * prime.x / radiiX);
@@ -253,16 +254,16 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             startVector.x * endVector.x + startVector.y * endVector.y);
         if (!sweep && sweepAngle > 0f)
         {
-            sweepAngle -= 2f * MathF.PI;
+            sweepAngle -= 2f * Pi;
         }
         else if (sweep && sweepAngle < 0f)
         {
-            sweepAngle += 2f * MathF.PI;
+            sweepAngle += 2f * Pi;
         }
 
-        var segmentCount = Math.Max(1, (int)MathF.Ceiling(MathF.Abs(sweepAngle) / (MathF.PI * 0.5f)));
+        var segmentCount = DeltaMaths.Max(1, (int)DeltaMaths.Ceil(DeltaMaths.Abs(sweepAngle) / (Pi * 0.5f)));
         var segmentAngle = sweepAngle / segmentCount;
-        var tangentScale = 4f / 3f * MathF.Tan(segmentAngle * 0.25f);
+        var tangentScale = 4f / 3f * DeltaMaths.Tan(segmentAngle * 0.25f);
         var angle = startAngle;
         for (var i = 0; i < segmentCount; i++)
         {
@@ -406,7 +407,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
         }
 
         var color = solid.Color;
-        var alpha = (byte)Math.Clamp((int)MathF.Round(color.A * solid.Opacity), 0, 255);
+        var alpha = (byte)DeltaMaths.Clamp((int)DeltaMaths.Round(color.A * solid.Opacity), 0, 255);
         return new Rgba32(color.R, color.G, color.B, alpha);
     }
 }

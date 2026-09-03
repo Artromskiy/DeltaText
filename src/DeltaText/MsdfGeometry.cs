@@ -352,8 +352,8 @@ internal sealed class MsdfGeometry
     {
         width = 0;
         height = 0;
-        var widthPixels = Math.Ceiling((double)(bounds.Right - bounds.Left) * scale);
-        var heightPixels = Math.Ceiling((double)(bounds.Bottom - bounds.Top) * scale);
+        var widthPixels = DeltaMaths.Ceil((double)(bounds.Right - bounds.Left) * scale);
+        var heightPixels = DeltaMaths.Ceil((double)(bounds.Bottom - bounds.Top) * scale);
         // Distance fields need one guard pixel on both sides of the requested
         // padding. Coverage and color images do not: their pixel rectangle is
         // the glyph bounds itself and the extra border would distort layout.
@@ -366,8 +366,8 @@ internal sealed class MsdfGeometry
             return false;
         }
 
-        width = Math.Max(1, checked((int)widthPixels + (int)extra));
-        height = Math.Max(1, checked((int)heightPixels + (int)extra));
+        width = DeltaMaths.Max(1, checked((int)widthPixels + (int)extra));
+        height = DeltaMaths.Max(1, checked((int)heightPixels + (int)extra));
         return true;
     }
 
@@ -447,7 +447,7 @@ internal sealed class MsdfEdgeGrid
 
     internal static MsdfEdgeGrid Create(MsdfEdge[] edges, int width, int height, float distanceRange)
     {
-        var cellSize = Math.Max(4, checked((int)MathF.Ceiling(distanceRange)));
+        var cellSize = DeltaMaths.Max(4, checked((int)DeltaMaths.Ceil(distanceRange)));
         var columns = (width + cellSize - 1) / cellSize;
         var rows = (height + cellSize - 1) / cellSize;
         var cellCount = checked(columns * rows);
@@ -501,9 +501,9 @@ internal sealed class MsdfEdgeGrid
         out int minY,
         out int maxY)
     {
-        minX = Math.Clamp((int)MathF.Floor(DeltaMaths.Min(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
-        maxX = Math.Clamp((int)MathF.Floor(DeltaMaths.Max(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
-        minY = Math.Clamp((int)MathF.Floor(DeltaMaths.Min(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
-        maxY = Math.Clamp((int)MathF.Floor(DeltaMaths.Max(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
+        minX = DeltaMaths.Clamp((int)DeltaMaths.Floor(DeltaMaths.Min(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
+        maxX = DeltaMaths.Clamp((int)DeltaMaths.Floor(DeltaMaths.Max(edge.Start.x, edge.End.x) / cellSize), 0, columns - 1);
+        minY = DeltaMaths.Clamp((int)DeltaMaths.Floor(DeltaMaths.Min(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
+        maxY = DeltaMaths.Clamp((int)DeltaMaths.Floor(DeltaMaths.Max(edge.Start.y, edge.End.y) / cellSize), 0, rows - 1);
     }
 }

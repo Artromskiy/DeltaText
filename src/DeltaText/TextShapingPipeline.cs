@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Delta.Maths;
 using Delta.Text.Contract;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
@@ -276,8 +277,8 @@ internal sealed class TextShapingPipeline
         Array.Fill(map, -1, 0, textLength);
         for (var i = 0; i < runs.Length; i++)
         {
-            var start = Math.Max(0, runs[i].Start);
-            var end = Math.Min(textLength, checked(runs[i].Start + runs[i].Length));
+            var start = DeltaMaths.Max(0, runs[i].Start);
+            var end = DeltaMaths.Min(textLength, checked(runs[i].Start + runs[i].Length));
             for (var index = start; index < end; index++)
             {
                 if (map[index] < 0)
@@ -569,10 +570,10 @@ internal sealed class TextShapingPipeline
             }
             else
             {
-                _left = Math.Min(_left, left);
-                _top = Math.Min(_top, top);
-                _right = Math.Max(_right, right);
-                _bottom = Math.Max(_bottom, bottom);
+                _left = DeltaMaths.Min(_left, left);
+                _top = DeltaMaths.Min(_top, top);
+                _right = DeltaMaths.Max(_right, right);
+                _bottom = DeltaMaths.Max(_bottom, bottom);
             }
         }
 
@@ -585,7 +586,7 @@ internal sealed class TextShapingPipeline
                 _pixelsPerEm,
                 _advanceX,
                 _advanceY,
-                new TextBounds(_left, _top, Math.Max(_right, _advanceX), _bottom),
+                new TextBounds(_left, _top, DeltaMaths.Max(_right, _advanceX), _bottom),
                 _glyphs.ToArray());
     }
 }
