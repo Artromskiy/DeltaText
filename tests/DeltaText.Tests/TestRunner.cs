@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Delta.Maths;
+using global::Delta;
 
 using Delta.Text.Contract;
 

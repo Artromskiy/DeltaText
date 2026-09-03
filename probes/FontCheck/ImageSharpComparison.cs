@@ -1,4 +1,4 @@
-using Delta.Maths;
+using global::Delta;
 using Delta.Text;
 using SixLabors.ImageSharp;
 using ImageRgba32 = SixLabors.ImageSharp.PixelFormats.Rgba32;

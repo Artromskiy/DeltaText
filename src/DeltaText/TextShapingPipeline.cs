@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Delta.Maths;
+using global::Delta;
 using Delta.Text.Contract;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;

@@ -1,5 +1,5 @@
 using System.Buffers.Binary;
-using Delta.Maths;
+using global::Delta;
 using SkiaSharp;
 
 namespace FontCheck;

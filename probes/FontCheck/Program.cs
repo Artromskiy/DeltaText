@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Globalization;
-using Delta.Maths;
+using global::Delta;
 using Delta.Text;
 using Delta.Text.Contract;
 using FontCheck;

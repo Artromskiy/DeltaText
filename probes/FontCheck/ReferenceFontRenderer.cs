@@ -1,5 +1,5 @@
 using System.Numerics;
-using Delta.Maths;
+using global::Delta;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
 using ImageRgba32 = SixLabors.ImageSharp.PixelFormats.Rgba32;

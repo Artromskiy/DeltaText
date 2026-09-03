@@ -1,4 +1,4 @@
-using Delta.Maths;
+using global::Delta;
 using Delta.Text.Contract;
 using SixLabors.Fonts;
 using ContractFontMetrics = Delta.Text.Contract.FontMetrics;

@@ -1,4 +1,4 @@
-using Delta.Maths;
+using global::Delta;
 using Delta.Text;
 using Delta.Text.Contract;
 

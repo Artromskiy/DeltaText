@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Delta.Maths;
+using global::Delta;
 using Delta.Text.Contract;
 
 namespace Delta.Text;

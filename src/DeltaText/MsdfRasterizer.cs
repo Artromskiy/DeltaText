@@ -1,4 +1,4 @@
-using Delta.Maths;
+using global::Delta;
 
 namespace Delta.Text;
 

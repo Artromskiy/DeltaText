@@ -43,10 +43,10 @@ dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
 dotnet run --project tests/DeltaText.Tests/DeltaText.Tests.csproj -c Release
 ```
 
-## Delta.Maths consumer boundary
+## Delta consumer boundary
 
 DeltaText, its tests and its bounded FontCheck/UnicodeConformance probes use
-`using Delta.Maths;` with the canonical `Maths.*` facade for mathematical
+`using global::Delta;` with the canonical `Maths.*` facade for mathematical
 operations. Keep the provider implementation's platform bridge isolated in
 DeltaMaths; do not reintroduce direct
 `System.Math`/`System.MathF` calls in this repository's consumer code. Run this
