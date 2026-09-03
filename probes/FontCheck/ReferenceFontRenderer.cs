@@ -163,16 +163,16 @@ internal sealed class ReferenceGlyphRenderer : IGlyphRenderer
         for (var i = 0; i < _glyphs.Count; i++)
         {
             var glyph = _glyphs[i];
-            left = DeltaMaths.Min(left, glyph.Bounds.Left);
-            top = DeltaMaths.Min(top, glyph.Bounds.Top);
-            right = DeltaMaths.Max(right, glyph.Bounds.Right);
-            bottom = DeltaMaths.Max(bottom, glyph.Bounds.Bottom);
+            left = Maths.Min(left, glyph.Bounds.Left);
+            top = Maths.Min(top, glyph.Bounds.Top);
+            right = Maths.Max(right, glyph.Bounds.Right);
+            bottom = Maths.Max(bottom, glyph.Bounds.Bottom);
         }
 
-        var pixelLeft = (int)DeltaMaths.Floor(left);
-        var pixelTop = (int)DeltaMaths.Floor(top);
-        var pixelRight = (int)DeltaMaths.Ceil(right);
-        var pixelBottom = (int)DeltaMaths.Ceil(bottom);
+        var pixelLeft = (int)Maths.Floor(left);
+        var pixelTop = (int)Maths.Floor(top);
+        var pixelRight = (int)Maths.Ceil(right);
+        var pixelBottom = (int)Maths.Ceil(bottom);
         var width = checked(pixelRight - pixelLeft);
         var height = checked(pixelBottom - pixelTop);
         if (width <= 0 || height <= 0)
@@ -264,7 +264,7 @@ internal sealed class ReferenceGlyphRenderer : IGlyphRenderer
     {
         var toleranceSquared = FlatteningTolerance * FlatteningTolerance;
         if (depth >= MaximumFlatteningDepth
-            || DeltaMaths.Max(
+            || Maths.Max(
                 DistanceToLineSquared(control1, start, end),
                 DistanceToLineSquared(control2, start, end)) <= toleranceSquared)
         {

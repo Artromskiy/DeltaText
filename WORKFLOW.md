@@ -46,8 +46,9 @@ dotnet run --project tests/DeltaText.Tests/DeltaText.Tests.csproj -c Release
 ## Delta.Maths consumer boundary
 
 DeltaText, its tests and its bounded FontCheck/UnicodeConformance probes use
-`Delta.Maths` for mathematical operations. Keep the provider implementation's
-platform bridge isolated in DeltaMaths; do not reintroduce direct
+`using Delta.Maths;` with the canonical `Maths.*` facade for mathematical
+operations. Keep the provider implementation's platform bridge isolated in
+DeltaMaths; do not reintroduce direct
 `System.Math`/`System.MathF` calls in this repository's consumer code. Run this
 bounded gate before a contract or performance change:
 

@@ -21,7 +21,7 @@ internal static class CpuDistanceDecoder
     private static float DecodeDistance(byte encoded, float distanceRange)
     {
         var distance = DecodeSignedDistance(encoded, distanceRange);
-        return DeltaMaths.Smoothstep(-0.5f, 0.5f, distance);
+        return Maths.Smoothstep(-0.5f, 0.5f, distance);
     }
 
     private static float DecodeMsdf(ReadOnlySpan<byte> source, int index, float distanceRange)
@@ -29,10 +29,10 @@ internal static class CpuDistanceDecoder
         var red = DecodeSignedDistance(source[index], distanceRange);
         var green = DecodeSignedDistance(source[index + 1], distanceRange);
         var blue = DecodeSignedDistance(source[index + 2], distanceRange);
-        var median = DeltaMaths.Max(
-            DeltaMaths.Min(red, green),
-            DeltaMaths.Min(DeltaMaths.Max(red, green), blue));
-        return DeltaMaths.Smoothstep(-0.5f, 0.5f, median);
+        var median = Maths.Max(
+            Maths.Min(red, green),
+            Maths.Min(Maths.Max(red, green), blue));
+        return Maths.Smoothstep(-0.5f, 0.5f, median);
     }
 
     private static float DecodeSignedDistance(byte encoded, float distanceRange)

@@ -120,10 +120,10 @@ internal static class TestRunner
             var expected = expectedGlyphs[i];
             Check(actual.GlyphId == expected.GetProperty("glyphId").GetUInt32(), $"Latin fixture glyph {i} changed");
             Check(actual.ClusterUtf16 == expected.GetProperty("clusterUtf16").GetInt32(), $"Latin fixture cluster {i} changed");
-            Check(DeltaMaths.Abs(actual.AdvanceX - expected.GetProperty("advanceX").GetSingle()) < 0.00001f, $"Latin fixture advance {i} changed");
-            Check(DeltaMaths.Abs(actual.AdvanceY - expected.GetProperty("advanceY").GetSingle()) < 0.00001f, $"Latin fixture vertical advance {i} changed");
-            Check(DeltaMaths.Abs(actual.OffsetX - expected.GetProperty("offsetX").GetSingle()) < 0.00001f, $"Latin fixture offset X {i} changed");
-            Check(DeltaMaths.Abs(actual.OffsetY - expected.GetProperty("offsetY").GetSingle()) < 0.00001f, $"Latin fixture offset Y {i} changed");
+            Check(Maths.Abs(actual.AdvanceX - expected.GetProperty("advanceX").GetSingle()) < 0.00001f, $"Latin fixture advance {i} changed");
+            Check(Maths.Abs(actual.AdvanceY - expected.GetProperty("advanceY").GetSingle()) < 0.00001f, $"Latin fixture vertical advance {i} changed");
+            Check(Maths.Abs(actual.OffsetX - expected.GetProperty("offsetX").GetSingle()) < 0.00001f, $"Latin fixture offset X {i} changed");
+            Check(Maths.Abs(actual.OffsetY - expected.GetProperty("offsetY").GetSingle()) < 0.00001f, $"Latin fixture offset Y {i} changed");
         }
 
         var imageSpec = root.GetProperty("image");

@@ -17,8 +17,8 @@ internal static class ManagedGlyphRasterizer
         Rgba32 foreground)
     {
         var hasDistance = mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf;
-        var padding = hasDistance ? checked((int)DeltaMaths.Ceil(distanceRange)) : 0;
-        var pixelSize = DeltaMaths.Max(1, (int)DeltaMaths.Ceil(pixelsPerEm));
+        var padding = hasDistance ? checked((int)Maths.Ceil(distanceRange)) : 0;
+        var pixelSize = Maths.Max(1, (int)Maths.Ceil(pixelsPerEm));
         var effectiveRange = hasDistance ? distanceRange : 1;
         var layers = outline.Layers;
         var first = FindFirstLayer(layers);
@@ -145,7 +145,7 @@ internal static class ManagedGlyphRasterizer
 
     private static void BlendColor(byte[] pixels, ReadOnlySpan<byte> coverage, Rgba32 color, int width, int height)
     {
-        var count = DeltaMaths.Min(coverage.Length, checked(width * height));
+        var count = Maths.Min(coverage.Length, checked(width * height));
         for (var i = 0; i < count; i++)
         {
             var sourceAlpha = coverage[i] * color.Alpha / 255;
@@ -157,10 +157,10 @@ internal static class ManagedGlyphRasterizer
             var offset = i * 4;
             var destinationAlpha = pixels[offset + 3];
             var inverse = 255 - sourceAlpha;
-            pixels[offset] = (byte)DeltaMaths.Clamp((color.Red * sourceAlpha + pixels[offset] * inverse) / 255, 0, 255);
-            pixels[offset + 1] = (byte)DeltaMaths.Clamp((color.Green * sourceAlpha + pixels[offset + 1] * inverse) / 255, 0, 255);
-            pixels[offset + 2] = (byte)DeltaMaths.Clamp((color.Blue * sourceAlpha + pixels[offset + 2] * inverse) / 255, 0, 255);
-            pixels[offset + 3] = (byte)DeltaMaths.Clamp(sourceAlpha + destinationAlpha * inverse / 255, 0, 255);
+            pixels[offset] = (byte)Maths.Clamp((color.Red * sourceAlpha + pixels[offset] * inverse) / 255, 0, 255);
+            pixels[offset + 1] = (byte)Maths.Clamp((color.Green * sourceAlpha + pixels[offset + 1] * inverse) / 255, 0, 255);
+            pixels[offset + 2] = (byte)Maths.Clamp((color.Blue * sourceAlpha + pixels[offset + 2] * inverse) / 255, 0, 255);
+            pixels[offset + 3] = (byte)Maths.Clamp(sourceAlpha + destinationAlpha * inverse / 255, 0, 255);
         }
     }
 
@@ -217,7 +217,7 @@ internal static class ManagedGlyphRasterizer
                 for (var i = 0; i < geometry.Edges.Length; i++)
                 {
                     var edge = geometry.Edges[i];
-                    nearest = DeltaMaths.Min(nearest, MsdfRasterizer.DistanceSquared(point, edge.Start, edge.End));
+                    nearest = Maths.Min(nearest, MsdfRasterizer.DistanceSquared(point, edge.Start, edge.End));
                     if ((edge.Start.y <= point.y && edge.End.y > point.y)
                         || (edge.Start.y > point.y && edge.End.y <= point.y))
                     {
@@ -231,7 +231,7 @@ internal static class ManagedGlyphRasterizer
                     }
                 }
 
-                var distance = DeltaMaths.Sqrt(nearest);
+                var distance = Maths.Sqrt(nearest);
                 if (winding == 0)
                 {
                     distance = -distance;

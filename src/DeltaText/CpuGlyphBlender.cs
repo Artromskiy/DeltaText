@@ -12,9 +12,9 @@ internal static class CpuGlyphBlender
         CpuTextRenderOptions options)
     {
         var image = placement.Image;
-        var targetX = checked((int)DeltaMaths.RoundEven(
+        var targetX = checked((int)Maths.RoundEven(
             placement.Origin.x + image.PlaneBounds.Left - bounds.Left));
-        var targetY = checked((int)DeltaMaths.RoundEven(
+        var targetY = checked((int)Maths.RoundEven(
             placement.Origin.y + image.PlaneBounds.Top - bounds.Top));
         var bytesPerPixel = CpuGlyphImageFormat.GetBytesPerPixel(image.Encoding);
         var source = image.Pixels.Span;
@@ -116,8 +116,8 @@ internal static class CpuGlyphBlender
                 source,
                 sourceIndex,
                 image.DistanceRange);
-            var alphaByte = checked((byte)DeltaMaths.Clamp(
-                (int)DeltaMaths.Round(alpha * options.Foreground.Alpha),
+            var alphaByte = checked((byte)Maths.Clamp(
+                (int)Maths.Round(alpha * options.Foreground.Alpha),
                 0,
                 255));
             CpuPixelBlender.BlendMonochrome(

@@ -126,8 +126,8 @@ internal static class BidiResolver
             var last = first + visualItems[start].Length;
             for (var i = start + 1; i < end; i++)
             {
-                first = DeltaMaths.Min(first, visualItems[i].Start);
-                last = DeltaMaths.Max(last, visualItems[i].Start + visualItems[i].Length);
+                first = Maths.Min(first, visualItems[i].Start);
+                last = Maths.Max(last, visualItems[i].Start + visualItems[i].Length);
             }
 
             runs.Add(new BidiRun(first, last - first, level, Direction(level)));
@@ -390,7 +390,7 @@ internal static class BidiResolver
             }
         }
 
-        var level = DeltaMaths.Max(items[boundaryIndex].Level, otherLevel);
+        var level = Maths.Max(items[boundaryIndex].Level, otherLevel);
         return DirectionClass(level);
     }
 
@@ -871,10 +871,10 @@ internal static class BidiResolver
         var minimumOdd = int.MaxValue;
         foreach (var item in items)
         {
-            maximum = DeltaMaths.Max(maximum, item.Level);
+            maximum = Maths.Max(maximum, item.Level);
             if (item.Level % 2 != 0)
             {
-                minimumOdd = DeltaMaths.Min(minimumOdd, item.Level);
+                minimumOdd = Maths.Min(minimumOdd, item.Level);
             }
         }
 

@@ -32,5 +32,5 @@ internal static class CpuPixelBlender
         destination[destinationIndex + 3] = Clamp(sourceAlpha + destination[destinationIndex + 3] * inverseAlpha / 255);
     }
 
-    private static byte Clamp(int value) => (byte)DeltaMaths.Min(255, value);
+    private static byte Clamp(int value) => (byte)Maths.Min(255, value);
 }

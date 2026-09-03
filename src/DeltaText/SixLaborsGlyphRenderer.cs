@@ -192,8 +192,8 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
 
         var end = new float2(point.X, point.Y);
         var start = new float2(startX, startY);
-        var radiiX = DeltaMaths.Abs(radiusX);
-        var radiiY = DeltaMaths.Abs(radiusY);
+        var radiiX = Maths.Abs(radiusX);
+        var radiiY = Maths.Abs(radiusY);
         if (radiiX <= float.Epsilon || radiiY <= float.Epsilon)
         {
             contour.LineTo(end.x, end.y);
@@ -206,9 +206,9 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             return;
         }
 
-        var phi = DeltaMaths.Radians(rotation);
-        var cosPhi = DeltaMaths.Cos(phi);
-        var sinPhi = DeltaMaths.Sin(phi);
+        var phi = Maths.Radians(rotation);
+        var cosPhi = Maths.Cos(phi);
+        var sinPhi = Maths.Sin(phi);
         var halfDelta = delta * 0.5f;
         var prime = new float2(
             cosPhi * halfDelta.x + sinPhi * halfDelta.y,
@@ -217,7 +217,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             + prime.y * prime.y / (radiiY * radiiY);
         if (lambda > 1f)
         {
-            var scale = DeltaMaths.Sqrt(lambda);
+            var scale = Maths.Sqrt(lambda);
             radiiX *= scale;
             radiiY *= scale;
         }
@@ -235,7 +235,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             - radiiXSquared * prime.y * prime.y
             - radiiYSquared * prime.x * prime.x;
         var sign = largeArc == sweep ? -1f : 1f;
-        var coefficient = sign * DeltaMaths.Sqrt(DeltaMaths.Max(0f, numerator / denominator));
+        var coefficient = sign * Maths.Sqrt(Maths.Max(0f, numerator / denominator));
         var centerPrime = new float2(
             coefficient * radiiX * prime.y / radiiY,
             coefficient * -radiiY * prime.x / radiiX);
@@ -248,8 +248,8 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
         var endVector = new float2(
             (-prime.x - centerPrime.x) / radiiX,
             (-prime.y - centerPrime.y) / radiiY);
-        var startAngle = DeltaMaths.Atan2(startVector.y, startVector.x);
-        var sweepAngle = DeltaMaths.Atan2(
+        var startAngle = Maths.Atan2(startVector.y, startVector.x);
+        var sweepAngle = Maths.Atan2(
             startVector.x * endVector.y - startVector.y * endVector.x,
             startVector.x * endVector.x + startVector.y * endVector.y);
         if (!sweep && sweepAngle > 0f)
@@ -261,17 +261,17 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
             sweepAngle += 2f * Pi;
         }
 
-        var segmentCount = DeltaMaths.Max(1, (int)DeltaMaths.Ceil(DeltaMaths.Abs(sweepAngle) / (Pi * 0.5f)));
+        var segmentCount = Maths.Max(1, (int)Maths.Ceil(Maths.Abs(sweepAngle) / (Pi * 0.5f)));
         var segmentAngle = sweepAngle / segmentCount;
-        var tangentScale = 4f / 3f * DeltaMaths.Tan(segmentAngle * 0.25f);
+        var tangentScale = 4f / 3f * Maths.Tan(segmentAngle * 0.25f);
         var angle = startAngle;
         for (var i = 0; i < segmentCount; i++)
         {
             var nextAngle = angle + segmentAngle;
-            var cosAngle = DeltaMaths.Cos(angle);
-            var sinAngle = DeltaMaths.Sin(angle);
-            var cosNext = DeltaMaths.Cos(nextAngle);
-            var sinNext = DeltaMaths.Sin(nextAngle);
+            var cosAngle = Maths.Cos(angle);
+            var sinAngle = Maths.Sin(angle);
+            var cosNext = Maths.Cos(nextAngle);
+            var sinNext = Maths.Sin(nextAngle);
             var first = TransformEllipse(center, radiiX, radiiY, cosPhi, sinPhi, cosAngle, sinAngle);
             var last = i == segmentCount - 1
                 ? end
@@ -407,7 +407,7 @@ internal sealed class SixLaborsGlyphRenderer : IGlyphRenderer
         }
 
         var color = solid.Color;
-        var alpha = (byte)DeltaMaths.Clamp((int)DeltaMaths.Round(color.A * solid.Opacity), 0, 255);
+        var alpha = (byte)Maths.Clamp((int)Maths.Round(color.A * solid.Opacity), 0, 255);
         return new Rgba32(color.R, color.G, color.B, alpha);
     }
 }

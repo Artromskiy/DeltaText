@@ -215,12 +215,12 @@ internal static class PixelComparison
             var pixelError = 0;
             for (var channel = 0; channel < 4; channel++)
             {
-                pixelError = DeltaMaths.Max(pixelError, DeltaMaths.Abs(oursPixels[offset + channel] - native.Pixels[offset + channel]));
+                pixelError = Maths.Max(pixelError, Maths.Abs(oursPixels[offset + channel] - native.Pixels[offset + channel]));
             }
 
             histogram[pixelError]++;
             totalAbsoluteError += pixelError;
-            maximumError = DeltaMaths.Max(maximumError, pixelError);
+            maximumError = Maths.Max(maximumError, pixelError);
             mismatchedPixels += pixelError == 0 ? 0 : 1;
         }
 
@@ -278,8 +278,8 @@ internal static class PixelComparison
         int offsetY)
     {
         var histogram = new long[256];
-        var width = DeltaMaths.Max(actualWidth, expected.Width + DeltaMaths.Abs(offsetX));
-        var height = DeltaMaths.Max(actualHeight, expected.Height + DeltaMaths.Abs(offsetY));
+        var width = Maths.Max(actualWidth, expected.Width + Maths.Abs(offsetX));
+        var height = Maths.Max(actualHeight, expected.Height + Maths.Abs(offsetY));
         var totalAbsoluteError = 0L;
         var mismatchedPixels = 0L;
         var maximumError = 0;
@@ -289,10 +289,10 @@ internal static class PixelComparison
             {
                 var actualAlpha = GetActualAlpha(actualPixels, actualWidth, actualHeight, x, y);
                 var expectedAlpha = GetExpectedAlpha(expected, x - offsetX, y - offsetY);
-                var error = DeltaMaths.Abs(actualAlpha - expectedAlpha);
+                var error = Maths.Abs(actualAlpha - expectedAlpha);
                 histogram[error]++;
                 totalAbsoluteError += error;
-                maximumError = DeltaMaths.Max(maximumError, error);
+                maximumError = Maths.Max(maximumError, error);
                 mismatchedPixels += error == 0 ? 0 : 1;
             }
         }
@@ -360,7 +360,7 @@ internal sealed class PixelAccumulator
         _comparedPixels += measurement.ComparedPixels;
         _mismatchedPixels += measurement.MismatchedPixels;
         _totalAbsoluteError += measurement.TotalAbsoluteError;
-        _maximumError = DeltaMaths.Max(_maximumError, measurement.MaximumError);
+        _maximumError = Maths.Max(_maximumError, measurement.MaximumError);
         if (_caseCount == 1)
         {
             _firstOffsetX = measurement.OffsetX;
@@ -379,7 +379,7 @@ internal sealed class PixelAccumulator
             _exactCaseCount,
             _comparedPixels,
             _mismatchedPixels,
-            _totalAbsoluteError / (double)DeltaMaths.Max(1, _comparedPixels),
+            _totalAbsoluteError / (double)Maths.Max(1, _comparedPixels),
             PixelComparisonPercentile(_histogram, 95),
             _maximumError,
             _firstOffsetX,

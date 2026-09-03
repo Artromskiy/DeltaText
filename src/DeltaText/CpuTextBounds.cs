@@ -14,16 +14,16 @@ internal static class CpuTextBounds
         {
             var placement = placements[i];
             var plane = placement.Image.PlaneBounds;
-            left = DeltaMaths.Min(left, placement.Origin.x + plane.Left);
-            top = DeltaMaths.Min(top, placement.Origin.y + plane.Top);
-            right = DeltaMaths.Max(right, placement.Origin.x + plane.Right);
-            bottom = DeltaMaths.Max(bottom, placement.Origin.y + plane.Bottom);
+            left = Maths.Min(left, placement.Origin.x + plane.Left);
+            top = Maths.Min(top, placement.Origin.y + plane.Top);
+            right = Maths.Max(right, placement.Origin.x + plane.Right);
+            bottom = Maths.Max(bottom, placement.Origin.y + plane.Bottom);
         }
 
-        var pixelLeft = checked((int)DeltaMaths.Floor(left));
-        var pixelTop = checked((int)DeltaMaths.Floor(top));
-        var pixelRight = checked((int)DeltaMaths.Ceil(right));
-        var pixelBottom = checked((int)DeltaMaths.Ceil(bottom));
+        var pixelLeft = checked((int)Maths.Floor(left));
+        var pixelTop = checked((int)Maths.Floor(top));
+        var pixelRight = checked((int)Maths.Ceil(right));
+        var pixelBottom = checked((int)Maths.Ceil(bottom));
         if (pixelRight <= pixelLeft || pixelBottom <= pixelTop)
         {
             throw new InvalidDataException("Glyph images produced an invalid CPU text bounds rectangle.");

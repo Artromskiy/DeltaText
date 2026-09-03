@@ -45,7 +45,7 @@ internal static class ImageSharpComparison
         // contour edges.  The independent paths must still agree on the
         // placement: a broad search is diagnostic, not permission to accept
         // a translated render.
-        Require(DeltaMaths.Abs(best.OffsetX) <= 1 && DeltaMaths.Abs(best.OffsetY) <= 1,
+        Require(Maths.Abs(best.OffsetX) <= 1 && Maths.Abs(best.OffsetY) <= 1,
             $"ImageSharp reference geometry mismatch for '{name}': "
             + $"best offset=({best.OffsetX},{best.OffsetY}), expected at most one pixel.");
         Require(best.MeanAbsoluteError <= 32,
@@ -103,8 +103,8 @@ internal static class ImageSharpComparison
         var total = 0;
         var maximum = 0;
         var covered = 0;
-        var unionWidth = DeltaMaths.Max(actual.Width, expected.Width + DeltaMaths.Abs(offsetX));
-        var unionHeight = DeltaMaths.Max(actual.Height, expected.Height + DeltaMaths.Abs(offsetY));
+        var unionWidth = Maths.Max(actual.Width, expected.Width + Maths.Abs(offsetX));
+        var unionHeight = Maths.Max(actual.Height, expected.Height + Maths.Abs(offsetY));
         for (var y = 0; y < unionHeight; y++)
         {
             for (var x = 0; x < unionWidth; x++)
@@ -113,9 +113,9 @@ internal static class ImageSharpComparison
                 var expectedX = x - offsetX;
                 var expectedY = y - offsetY;
                 var expectedAlpha = GetExpectedAlpha(expected, expectedX, expectedY);
-                var error = DeltaMaths.Abs(actualAlpha - expectedAlpha);
+                var error = Maths.Abs(actualAlpha - expectedAlpha);
                 total += error;
-                maximum = DeltaMaths.Max(maximum, error);
+                maximum = Maths.Max(maximum, error);
                 errors.Add((byte)error);
                 covered++;
             }
@@ -162,10 +162,10 @@ internal static class ImageSharpComparison
                 }
 
                 count++;
-                left = DeltaMaths.Min(left, x);
-                top = DeltaMaths.Min(top, y);
-                right = DeltaMaths.Max(right, x + 1);
-                bottom = DeltaMaths.Max(bottom, y + 1);
+                left = Maths.Min(left, x);
+                top = Maths.Min(top, y);
+                right = Maths.Max(right, x + 1);
+                bottom = Maths.Max(bottom, y + 1);
             }
         }
 
@@ -189,10 +189,10 @@ internal static class ImageSharpComparison
                 }
 
                 count++;
-                left = DeltaMaths.Min(left, x);
-                top = DeltaMaths.Min(top, y);
-                right = DeltaMaths.Max(right, x + 1);
-                bottom = DeltaMaths.Max(bottom, y + 1);
+                left = Maths.Min(left, x);
+                top = Maths.Min(top, y);
+                right = Maths.Max(right, x + 1);
+                bottom = Maths.Max(bottom, y + 1);
             }
         }
 
@@ -206,8 +206,8 @@ internal static class ImageSharpComparison
         string outputDirectory,
         string name)
     {
-        var width = DeltaMaths.Max(actual.Width, expected.Width + DeltaMaths.Abs(comparison.OffsetX));
-        var height = DeltaMaths.Max(actual.Height, expected.Height + DeltaMaths.Abs(comparison.OffsetY));
+        var width = Maths.Max(actual.Width, expected.Width + Maths.Abs(comparison.OffsetX));
+        var height = Maths.Max(actual.Height, expected.Height + Maths.Abs(comparison.OffsetY));
         var pixels = new byte[checked(width * height * 4)];
         var actualPixels = actual.Pixels.Span;
         for (var y = 0; y < height; y++)
@@ -221,7 +221,7 @@ internal static class ImageSharpComparison
                     y - comparison.OffsetY);
                 var offset = (y * width + x) * 4;
                 pixels[offset] = actualAlpha;
-                pixels[offset + 1] = (byte)DeltaMaths.Min(actualAlpha, expectedAlpha);
+                pixels[offset + 1] = (byte)Maths.Min(actualAlpha, expectedAlpha);
                 pixels[offset + 2] = expectedAlpha;
                 pixels[offset + 3] = 255;
             }

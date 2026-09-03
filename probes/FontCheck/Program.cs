@@ -1088,19 +1088,19 @@ static RenderOutputSummary RenderShapeComparison(
         shapedGlyph.GlyphId,
         outlineData.CoreTextCommands,
         skia.Commands);
-    var skiaAdvanceDifference = DeltaMaths.Abs(skia.AdvanceX - shapedGlyph.AdvanceX);
+    var skiaAdvanceDifference = Maths.Abs(skia.AdvanceX - shapedGlyph.AdvanceX);
 
     const float padding = 32;
     var shapedBounds = GetShapedBounds(shaped);
     var bounds = new TextBounds(
-        DeltaMaths.Min(shapedBounds.Left, reference.Left) - padding,
-        DeltaMaths.Min(shapedBounds.Top, reference.Top) - padding,
-        DeltaMaths.Max(shapedBounds.Right, reference.Left + reference.Width) + padding,
-        DeltaMaths.Max(shapedBounds.Bottom, reference.Top + reference.Height) + padding);
-    var canvasLeft = (int)DeltaMaths.Floor(bounds.Left);
-    var canvasTop = (int)DeltaMaths.Floor(bounds.Top);
-    var canvasRight = (int)DeltaMaths.Ceil(bounds.Right);
-    var canvasBottom = (int)DeltaMaths.Ceil(bounds.Bottom);
+        Maths.Min(shapedBounds.Left, reference.Left) - padding,
+        Maths.Min(shapedBounds.Top, reference.Top) - padding,
+        Maths.Max(shapedBounds.Right, reference.Left + reference.Width) + padding,
+        Maths.Max(shapedBounds.Bottom, reference.Top + reference.Height) + padding);
+    var canvasLeft = (int)Maths.Floor(bounds.Left);
+    var canvasTop = (int)Maths.Floor(bounds.Top);
+    var canvasRight = (int)Maths.Ceil(bounds.Right);
+    var canvasBottom = (int)Maths.Ceil(bounds.Bottom);
     var canvasWidth = checked(canvasRight - canvasLeft);
     var canvasHeight = checked(canvasBottom - canvasTop);
     var canvasBounds = new TextBounds(canvasLeft, canvasTop, canvasRight, canvasBottom);
@@ -1129,11 +1129,11 @@ static RenderOutputSummary RenderShapeComparison(
     var referenceBounds = GetAlphaBounds(referencePixels, reference.Width, reference.Height);
     var deltaTextBounds = GetAlphaBounds(frame.Pixels.Span, frame.Width, frame.Height);
     var skiaBounds = GetAlphaBounds(skia.Pixels, skia.Width, skia.Height);
-    var alignedWidth = DeltaMaths.Max(
-        DeltaMaths.Max(DeltaMaths.Max(nativeBounds.Width, referenceBounds.Width), deltaTextBounds.Width),
+    var alignedWidth = Maths.Max(
+        Maths.Max(Maths.Max(nativeBounds.Width, referenceBounds.Width), deltaTextBounds.Width),
         skiaBounds.Width) + 64;
-    var alignedHeight = DeltaMaths.Max(
-        DeltaMaths.Max(DeltaMaths.Max(nativeBounds.Height, referenceBounds.Height), deltaTextBounds.Height),
+    var alignedHeight = Maths.Max(
+        Maths.Max(Maths.Max(nativeBounds.Height, referenceBounds.Height), deltaTextBounds.Height),
         skiaBounds.Height) + 64;
     var alignedNative = CropToPadded(native.Pixels, native.Width, nativeBounds, alignedWidth, alignedHeight, 32);
     var alignedReference = CropToPadded(referencePixels, reference.Width, referenceBounds, alignedWidth, alignedHeight, 32);
@@ -1266,10 +1266,10 @@ static ImageBounds GetAlphaBounds(ReadOnlySpan<byte> rgba, int width, int height
                 continue;
             }
 
-            left = DeltaMaths.Min(left, x);
-            top = DeltaMaths.Min(top, y);
-            right = DeltaMaths.Max(right, x + 1);
-            bottom = DeltaMaths.Max(bottom, y + 1);
+            left = Maths.Min(left, x);
+            top = Maths.Min(top, y);
+            right = Maths.Max(right, x + 1);
+            bottom = Maths.Max(bottom, y + 1);
         }
     }
 
@@ -1306,10 +1306,10 @@ static TextBounds GetShapedBounds(ShapedText shaped)
     for (var index = 0; index < shaped.Runs.Length; index++)
     {
         var bounds = shaped.Runs.Span[index].Bounds;
-        left = DeltaMaths.Min(left, bounds.Left);
-        top = DeltaMaths.Min(top, bounds.Top);
-        right = DeltaMaths.Max(right, bounds.Right);
-        bottom = DeltaMaths.Max(bottom, bounds.Bottom);
+        left = Maths.Min(left, bounds.Left);
+        top = Maths.Min(top, bounds.Top);
+        right = Maths.Max(right, bounds.Right);
+        bottom = Maths.Max(bottom, bounds.Bottom);
     }
 
     Require(float.IsFinite(left) && float.IsFinite(top)
@@ -1327,9 +1327,9 @@ static byte[] CreateDifferencePreview(
     var preview = new byte[first.Length];
     for (var index = 0; index < preview.Length; index += 4)
     {
-        var difference = DeltaMaths.Abs(first[index + 3] - second[index + 3]);
-        var intensity = DeltaMaths.Min(255, difference * 4);
-        preview[index] = (byte)DeltaMaths.Min(255, background.Red + intensity);
+        var difference = Maths.Abs(first[index + 3] - second[index + 3]);
+        var intensity = Maths.Min(255, difference * 4);
+        preview[index] = (byte)Maths.Min(255, background.Red + intensity);
         preview[index + 1] = background.Green;
         preview[index + 2] = background.Blue;
         preview[index + 3] = 255;
@@ -1348,13 +1348,13 @@ static PixelDifferenceSummary CompareAlpha(ReadOnlySpan<byte> first, ReadOnlySpa
     long totalDifference = 0;
     for (var index = 3; index < first.Length; index += 4)
     {
-        var difference = DeltaMaths.Abs(first[index] - second[index]);
+        var difference = Maths.Abs(first[index] - second[index]);
         if (difference != 0)
         {
             differentPixels++;
         }
 
-        maximumDifference = DeltaMaths.Max(maximumDifference, difference);
+        maximumDifference = Maths.Max(maximumDifference, difference);
         totalDifference += difference;
     }
 
@@ -1483,8 +1483,8 @@ static void ValidateSdfImage(GlyphImage image, FontInstanceId font, uint glyphId
     var maximum = byte.MinValue;
     foreach (var value in image.Pixels.Span)
     {
-        minimum = (byte)DeltaMaths.Min((int)minimum, value);
-        maximum = (byte)DeltaMaths.Max((int)maximum, value);
+        minimum = (byte)Maths.Min((int)minimum, value);
+        maximum = (byte)Maths.Max((int)maximum, value);
     }
 
     Require(minimum < 128 && maximum > 128, $"Glyph {glyphId} has no signed-distance range.");
@@ -1497,9 +1497,9 @@ static byte[] CompositeOnBackground(ReadOnlySpan<byte> source, Rgba32 background
     {
         var alpha = output[i + 3];
         var inverse = 255 - alpha;
-        output[i] = (byte)DeltaMaths.Min(255, output[i] + background.Red * inverse / 255);
-        output[i + 1] = (byte)DeltaMaths.Min(255, output[i + 1] + background.Green * inverse / 255);
-        output[i + 2] = (byte)DeltaMaths.Min(255, output[i + 2] + background.Blue * inverse / 255);
+        output[i] = (byte)Maths.Min(255, output[i] + background.Red * inverse / 255);
+        output[i + 1] = (byte)Maths.Min(255, output[i + 1] + background.Green * inverse / 255);
+        output[i + 2] = (byte)Maths.Min(255, output[i + 2] + background.Blue * inverse / 255);
         output[i + 3] = 255;
     }
 

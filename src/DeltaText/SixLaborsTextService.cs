@@ -67,7 +67,7 @@ public class SixLaborsTextService : ITextService
             return new ContractFontMetrics(
                 face.Metrics.UnitsPerEm,
                 horizontal.Ascender * scale,
-                DeltaMaths.Max(0f, -horizontal.Descender) * scale,
+                Maths.Max(0f, -horizontal.Descender) * scale,
                 horizontal.LineGap * scale,
                 face.Metrics.UnderlinePosition * scale,
                 face.Metrics.UnderlineThickness * scale);
