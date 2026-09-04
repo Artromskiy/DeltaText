@@ -3,10 +3,10 @@
 ## SixLabors.Fonts
 
 DeltaText is built from the locally built package `SixLabors.Fonts.Delta` version
-`3.1.0`, built from
-`https://github.com/Artromskiy/Fonts` commit
-`cadda774b743472e4186e96c8d779a8419276f98` on branch
-`fix-cff-igrunok-outline`. It supplies font loading, OpenType layout and
+`3.1.0-source.c68b27d`, built from
+`https://github.com/SixLabors/Fonts` commit
+`c68b27d683c701ca254d5cfc6487c699954f19ff` (merge of PR #557,
+`Fix signed fractional CFF coordinates`). It supplies font loading, OpenType layout and
 outline callbacks. It is licensed under the Six Labors Split License, version
 1.0, June 2022. The applicable license file is supplied to the local build
 through `SixLaborsLicenseFile`; it is intentionally kept outside Git at

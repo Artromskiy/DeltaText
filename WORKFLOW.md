@@ -98,15 +98,17 @@ The current Unicode 17 inputs were verified with SHA-256
 respectively. Width-dependent multi-line layout remains a consumer/layout
 responsibility.
 
-The compile-time package `SixLabors.Fonts.Delta` version `3.1.0` supplies font
-loading, OpenType shaping, fallback selection and outline callbacks. It is
-built from `Artromskiy/Fonts` commit
-`cadda774b743472e4186e96c8d779a8419276f98` (branch
-`fix-cff-igrunok-outline`). DeltaText keeps the returned pixels and performs
+The compile-time package `SixLabors.Fonts.Delta` supplies font loading,
+OpenType shaping, fallback selection and outline callbacks. The current
+package is built from the official `SixLabors/Fonts` repository at commit
+`c68b27d683c701ca254d5cfc6487c699954f19ff` (merge of PR #557,
+`Fix signed fractional CFF coordinates`) and is versioned
+`3.1.0-source.c68b27d`. DeltaText keeps the returned pixels and performs
 coverage, SDF, MSDF and color rasterization in managed C#. There is no native
 font or MSDF DLL to copy, and no ImageSharp runtime dependency.
 
-The fork package is a build-only input kept outside Git at
+The source snapshot is repackaged as `SixLabors.Fonts.Delta` for the build-only
+input kept outside Git at
 `Furnace/Packages/SixLabors.Fonts-Fork`. `DeltaText.csproj` and the dev-only
 tests/probes prepend this local feed by default; another machine or CI job that
 builds the source, tests or probes must provide the same package feed through
@@ -124,13 +126,14 @@ explicitly through `SixLaborsFontsPackageSource`:
 sixlabors_fonts_source='https://nuget.pkg.github.com/Artromskiy/index.json'
 dotnet restore src/DeltaText/DeltaText.csproj \
   -p:SixLaborsFontsPackageSource="$sixlabors_fonts_source" \
-  -p:SixLaborsFontsPackageVersion=3.1.0
+  -p:SixLaborsFontsPackageVersion=3.1.0-source.c68b27d
 ```
 
 The feed credentials belong in the user's NuGet credential provider or
 environment, never in the repository. The source must provide
-`SixLabors.Fonts.Delta` `3.1.0`; the public `SixLabors.Fonts` `3.1.0` package is not an
-equivalent substitute for DeltaText's pinned outline behavior.
+`SixLabors.Fonts.Delta` `3.1.0-source.c68b27d`; the public
+`SixLabors.Fonts` package is not an equivalent substitute for DeltaText's
+pinned outline behavior.
 
 The published DeltaText package has no SixLabors NuGet dependency. At pack time
 the verified fork assembly is copied into the package as
@@ -140,7 +143,7 @@ SixLabors dependency in the generated nuspec. Consumers therefore restore only
 DeltaText (and its public DeltaMaths dependency); they do not need a private
 feed or a separate SixLabors package.
 
-The fork's SixLabors.Fonts 3.1.0 code is distributed under the Six Labors Split License. The
+The pinned SixLabors.Fonts source is distributed under the Six Labors Split License. The
 package's build target requires a local license file. Set the property through
 the environment for local and CI builds; do not commit the file or its path:
 
@@ -157,7 +160,8 @@ Linux, macOS and Windows.
 The `DeltaText` release package is version `0.0.8` and corresponds to tag
 `v0.0.8`. This version removes the SixLabors dependency from the public nuspec
 and bundles the verified assembly instead. Before packing, make sure the
-build-only feed contains the exact `SixLabors.Fonts.Delta` `3.1.0` package and
+build-only feed contains the exact `SixLabors.Fonts.Delta`
+`3.1.0-source.c68b27d` package and
 that `SixLaborsLicenseFile` points to a local license file. Pack from a clean
 checkout into a disposable directory:
 
@@ -172,7 +176,7 @@ SixLaborsLicenseFile=/path/to/sixlabors.lic \
 dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore -o "$package_dir"
 ```
 
-For a package build, provide the fork assembly and verify the package surface:
+For a package build, provide the pinned source assembly and verify the package surface:
 
 ```bash
 SixLaborsLicenseFile=/path/to/sixlabors.lic \

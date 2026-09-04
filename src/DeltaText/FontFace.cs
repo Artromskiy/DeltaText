@@ -3,6 +3,7 @@ using System.Globalization;
 using Delta.Text.Contract;
 using SixLabors.Fonts;
 using SixLabors.Fonts.Rendering;
+using SixTag = SixLabors.Fonts.Tables.AdvancedTypographic.Tag;
 using SixLabors.Fonts.Unicode;
 using SixFont = SixLabors.Fonts.Font;
 using SixFontMetrics = SixLabors.Fonts.FontMetrics;
@@ -257,22 +258,10 @@ internal sealed class FontFace : IDisposable
         var result = new SixFontVariation[variations.Length];
         for (var i = 0; i < variations.Length; i++)
         {
-            result[i] = new SixFontVariation(ToTag(variations[i].Axis), variations[i].Value);
+            result[i] = new SixFontVariation(new SixTag(variations[i].Axis.Value), variations[i].Value);
         }
 
         return result;
-    }
-
-    private static string ToTag(OpenTypeTag tag)
-    {
-        var value = tag.Value;
-        return new string(
-        [
-            (char)(value >> 24),
-            (char)(value >> 16),
-            (char)(value >> 8),
-            (char)value
-        ]);
     }
 
     private static bool IsFontCollection(ReadOnlySpan<byte> data)

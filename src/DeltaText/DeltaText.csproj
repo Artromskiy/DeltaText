@@ -16,7 +16,7 @@
     <RootNamespace>Delta.Text</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SixLaborsFontsPackageId Condition="'$(SixLaborsFontsPackageId)' == ''">SixLabors.Fonts.Delta</SixLaborsFontsPackageId>
-    <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0-fork.cadda774</SixLaborsFontsPackageVersion>
+    <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0-source.c68b27d</SixLaborsFontsPackageVersion>
     <SixLaborsFontsPackageSource Condition="'$(SixLaborsFontsPackageSource)' == ''">$(MSBuildProjectDirectory)/../../../Furnace/Packages/SixLabors.Fonts-Fork</SixLaborsFontsPackageSource>
     <SixLaborsFontsAssemblyPath Condition="'$(SixLaborsFontsAssemblyPath)' == ''"></SixLaborsFontsAssemblyPath>
     <RestoreSources>$(SixLaborsFontsPackageSource);$(RestoreSources)</RestoreSources>
@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <Target Name="ValidateBundledSixLaborsAssembly" BeforeTargets="Pack">
-    <Error Condition="'$(SixLaborsFontsAssemblyPath)' == ''" Text="SixLaborsFontsAssemblyPath is required when packing DeltaText. Pass the verified fork SixLabors.Fonts.dll explicitly." />
+    <Error Condition="'$(SixLaborsFontsAssemblyPath)' == ''" Text="SixLaborsFontsAssemblyPath is required when packing DeltaText. Pass the verified source snapshot SixLabors.Fonts.dll explicitly." />
     <Error Condition="'$(SixLaborsFontsAssemblyPath)' != '' And !Exists('$(SixLaborsFontsAssemblyPath)')" Text="SixLaborsFontsAssemblyPath does not exist: $(SixLaborsFontsAssemblyPath)" />
   </Target>
 </Project>
