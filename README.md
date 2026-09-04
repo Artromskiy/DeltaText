@@ -15,7 +15,7 @@ returns owned glyph images and metrics for CPU previews or a renderer.
 ## Quick start
 
 ```xml
-<PackageReference Include="DeltaText" Version="0.0.7" />
+<PackageReference Include="DeltaText" Version="0.0.8" />
 ```
 
 ```csharp

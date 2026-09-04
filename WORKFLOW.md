@@ -154,8 +154,8 @@ Linux, macOS and Windows.
 
 ## NuGet package release
 
-The `DeltaText` release package is version `0.0.7` and corresponds to tag
-`v0.0.7`. This version removes the SixLabors dependency from the public nuspec
+The `DeltaText` release package is version `0.0.8` and corresponds to tag
+`v0.0.8`. This version removes the SixLabors dependency from the public nuspec
 and bundles the verified assembly instead. Before packing, make sure the
 build-only feed contains the exact `SixLabors.Fonts.Delta` `3.1.0` package and
 that `SixLaborsLicenseFile` points to a local license file. Pack from a clean
@@ -178,7 +178,7 @@ For a package build, provide the fork assembly and verify the package surface:
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
 dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore \
   -p:SixLaborsFontsAssemblyPath=/path/to/SixLabors.Fonts.dll -o "$package_dir"
-./eng/verify-package.sh "$package_dir/DeltaText.0.0.7.nupkg"
+./eng/verify-package.sh "$package_dir/DeltaText.0.0.8.nupkg"
 ```
 
 Inspect the nuspec and package contents, then publish only the exact package
@@ -188,7 +188,7 @@ shell history:
 
 ```bash
 : "${NUGET_API_KEY:?Set NUGET_API_KEY through your local credential setup}"
-dotnet nuget push "$package_dir/DeltaText.0.0.7.nupkg" \
+dotnet nuget push "$package_dir/DeltaText.0.0.8.nupkg" \
   --source https://api.nuget.org/v3/index.json \
   --api-key "$NUGET_API_KEY" \
   --skip-duplicate \
