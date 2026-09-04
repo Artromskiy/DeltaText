@@ -8,7 +8,7 @@
     <AssemblyName>FontCheck</AssemblyName>
     <RootNamespace>FontCheck</RootNamespace>
     <SixLaborsFontsPackageSource Condition="'$(SixLaborsFontsPackageSource)' == ''">$(MSBuildProjectDirectory)/../../../Furnace/Packages/SixLabors.Fonts-Fork</SixLaborsFontsPackageSource>
-    <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0</SixLaborsFontsPackageVersion>
+    <SixLaborsFontsPackageVersion Condition="'$(SixLaborsFontsPackageVersion)' == ''">3.1.0-fork.cadda774</SixLaborsFontsPackageVersion>
     <RestoreSources>$(SixLaborsFontsPackageSource);$(RestoreSources)</RestoreSources>
   </PropertyGroup>
 
