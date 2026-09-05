@@ -11,6 +11,7 @@ internal static class TestRunner
     [
         ("open font owns source bytes and metrics", OpenFont),
         ("Latin shaping preserves clusters and ligatures", LatinShaping),
+        ("glyph sampling preserves device size and distance padding", GlyphSampling),
         ("deterministic Latin UI smoke fixture", LatinUiSmokeFixture),
         ("shaping layout ranges and advances stay valid", ShapingLayoutInvariants),
         ("Unicode smoke handles mixed scripts and missing glyphs", UnicodeSmoke),
@@ -80,6 +81,30 @@ internal static class TestRunner
         Check(shaped.Runs.Span[0].Glyphs.Span.ToArray().Any(static glyph =>
                 (glyph.Safety & GlyphSafety.UnsafeToBreak) != 0),
             "ligature safety was not reported");
+    }
+
+    private static void GlyphSampling()
+    {
+        using var service = new SixLaborsTextService();
+        var font = Open(service, LatinPath(), "4b2e65b1-e3d9-4d03-9f3d-3f09a6f4f8ae");
+        const float pixelsPerEm = 11.5f;
+        var shaped = service.Shape(new TextShapeRequest("A".AsMemory(), pixelsPerEm, new[] { font }));
+        Check(shaped.Runs.Length == 1, "small sampling fixture produced an unexpected run count");
+        var run = shaped.Runs.Span[0];
+        Check(run.PixelsPerEm == pixelsPerEm, "shaped run lost the requested device size");
+
+        var glyphId = run.Glyphs.Span[0].GlyphId;
+        var coverage = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Coverage));
+        var sdf4 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Sdf, 4));
+        var sdf8 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Sdf, 8));
+        Check(coverage.PixelsPerEm == pixelsPerEm, "coverage image lost the requested device size");
+        Check(sdf4.PixelsPerEm == pixelsPerEm && sdf8.PixelsPerEm == pixelsPerEm,
+            "distance image lost the requested device size");
+        Check(sdf4.DistanceRange == 4 && sdf8.DistanceRange == 8, "distance range was not preserved");
+        Check(sdf8.Width == sdf4.Width + 8 && sdf8.Height == sdf4.Height + 8,
+            "SDF padding did not grow symmetrically with distance range");
+        Check(sdf4.Width > coverage.Width && sdf4.Height > coverage.Height,
+            "SDF guard field is not present around the small glyph");
     }
 
     private static void LatinUiSmokeFixture()
