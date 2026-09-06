@@ -102,10 +102,11 @@ The compile-time package `SixLabors.Fonts.Delta` supplies font loading,
 OpenType shaping, fallback selection and outline callbacks. The current
 package is built from the official `SixLabors/Fonts` repository at commit
 `c68b27d683c701ca254d5cfc6487c699954f19ff` (merge of PR #557,
-`Fix signed fractional CFF coordinates`) and is versioned
-`3.1.0-source.c68b27d`. DeltaText keeps the returned pixels and performs
-coverage, SDF, MSDF and color rasterization in managed C#. There is no native
-font or MSDF DLL to copy, and no ImageSharp runtime dependency.
+`Fix signed fractional CFF coordinates`). The package ID and version are
+declared once in `src/DeltaText/DeltaText.csproj`; this workflow does not copy
+that version. DeltaText keeps the returned pixels and performs coverage, SDF,
+MSDF and color rasterization in managed C#. There is no native font or MSDF DLL
+to copy, and no ImageSharp runtime dependency.
 
 The source snapshot is repackaged as `SixLabors.Fonts.Delta` for the build-only
 input kept outside Git at
@@ -114,8 +115,8 @@ tests/probes prepend this local feed by default; another machine or CI job that
 builds the source, tests or probes must provide the same package feed through
 the `SixLaborsFontsPackageSource` MSBuild property. This makes a missing fork
 package fail during restore instead of silently selecting the public NuGet
-build. The package version is selected with `SixLaborsFontsPackageVersion` when
-a verified replacement is intentionally tested.
+build. A verified replacement may override `SixLaborsFontsPackageVersion`; the
+default remains the value declared in the project file.
 
 For a clean source checkout without the local fork directory, point that
 property at an authenticated feed containing the exact fork package. Do not
@@ -125,13 +126,12 @@ explicitly through `SixLaborsFontsPackageSource`:
 ```bash
 sixlabors_fonts_source='https://nuget.pkg.github.com/Artromskiy/index.json'
 dotnet restore src/DeltaText/DeltaText.csproj \
-  -p:SixLaborsFontsPackageSource="$sixlabors_fonts_source" \
-  -p:SixLaborsFontsPackageVersion=3.1.0-source.c68b27d
+  -p:SixLaborsFontsPackageSource="$sixlabors_fonts_source"
 ```
 
 The feed credentials belong in the user's NuGet credential provider or
-environment, never in the repository. The source must provide
-`SixLabors.Fonts.Delta` `3.1.0-source.c68b27d`; the public
+environment, never in the repository. The source must provide the
+`SixLabors.Fonts.Delta` package declared by `DeltaText.csproj`; the public
 `SixLabors.Fonts` package is not an equivalent substitute for DeltaText's
 pinned outline behavior.
 
@@ -155,53 +155,13 @@ The current local license is kept outside Git at
 `Furnace/Licenses/SixLabors.lic`. The managed build is otherwise the same on
 Linux, macOS and Windows.
 
-## NuGet package release
+## NuGet
 
-The `DeltaText` release package is version `0.0.8` and corresponds to tag
-`v0.0.8`. This version removes the SixLabors dependency from the public nuspec
-and bundles the verified assembly instead. Before packing, make sure the
-build-only feed contains the exact `SixLabors.Fonts.Delta`
-`3.1.0-source.c68b27d` package and
-that `SixLaborsLicenseFile` points to a local license file. Pack from a clean
-checkout into a disposable directory:
-
-```bash
-package_dir="$(mktemp -d "${TMPDIR:-/tmp}/deltatext-pack.XXXXXX")"
-sixlabors_fonts_source='https://nuget.pkg.github.com/Artromskiy/index.json'
-SixLaborsLicenseFile=/path/to/sixlabors.lic \
-dotnet restore src/DeltaText/DeltaText.csproj \
-  -p:SixLaborsFontsPackageSource="$sixlabors_fonts_source" \
-  -p:SixLaborsFontsPackageVersion=3.1.0
-SixLaborsLicenseFile=/path/to/sixlabors.lic \
-dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore -o "$package_dir"
-```
-
-For a package build, provide the pinned source assembly and verify the package surface:
-
-```bash
-SixLaborsLicenseFile=/path/to/sixlabors.lic \
-dotnet pack src/DeltaText/DeltaText.csproj -c Release --no-restore \
-  -p:SixLaborsFontsAssemblyPath=/path/to/SixLabors.Fonts.dll -o "$package_dir"
-./eng/verify-package.sh "$package_dir/DeltaText.0.0.8.nupkg"
-```
-
-Inspect the nuspec and package contents, then publish only the exact package
-version to NuGet.org. Supply the key through a credential provider or an
-already-exported environment variable; never put it in this repository or in
-shell history:
-
-```bash
-: "${NUGET_API_KEY:?Set NUGET_API_KEY through your local credential setup}"
-dotnet nuget push "$package_dir/DeltaText.0.0.8.nupkg" \
-  --source https://api.nuget.org/v3/index.json \
-  --api-key "$NUGET_API_KEY" \
-  --skip-duplicate \
-  --no-symbols
-```
-
-The private `SixLabors.Fonts.Delta` package is needed only while building the
-source project and its dev-only tests/probes. It is not published as a
-DeltaText dependency and must never be requested by a DeltaText consumer.
+NuGet has only the workspace `dev` and `release` modes. Run them from the
+Furnace root as documented in
+[`docs/NUGET_WORKFLOW.md`](../docs/NUGET_WORKFLOW.md). The private
+`SixLabors.Fonts.Delta` package remains a build-time dependency; the release
+mode bundles the verified assembly and does not expose it to consumers.
 
 ## Code metrics
 

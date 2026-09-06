@@ -16,7 +16,7 @@ internal static class NativeConformance
     private const int ImageSharpSampleStride = 64;
 
     internal static NativeCorpusSummary Run(
-        SixLaborsTextService service,
+        DeltaTextService service,
         FontInstanceId font,
         string fontPath,
         ReadOnlySpan<byte> fontBytes,

@@ -10,7 +10,7 @@ Use `Delta.Text.Contract.ITextService`:
 using Delta.Text;
 using Delta.Text.Contract;
 
-using ITextService text = new SixLaborsTextService();
+using ITextService text = new DeltaTextService();
 var font = text.OpenFont(new FontOpenRequest(sourceId, fontBytes, faceIndex));
 var shaped = text.Shape(new TextShapeRequest(
     "office Привет".AsMemory(),

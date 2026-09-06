@@ -24,7 +24,7 @@ using Delta.Text.Contract;
 using System;
 using System.IO;
 
-using ITextService text = new SixLaborsTextService();
+using ITextService text = new DeltaTextService();
 byte[] fontBytes = File.ReadAllBytes("font.ttf");
 FontSourceId source = new(Guid.NewGuid());
 FontInstanceId font = text.OpenFont(new FontOpenRequest(

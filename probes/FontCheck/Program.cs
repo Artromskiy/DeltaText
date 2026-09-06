@@ -40,7 +40,7 @@ Directory.CreateDirectory(options.OutputDirectory);
 var bidi = RunBidiChecks(options.BidiCorpusPath);
 var bidiTest = RunBidiTest(options.BidiTestPath);
 var bidiBrackets = RunBidiBrackets(options.BidiBracketsPath);
-using var service = new SixLaborsTextService();
+using var service = new DeltaTextService();
 var font = service.OpenFont(new FontOpenRequest(
     new FontSourceId(Guid.Parse("8f43c363-400a-4f27-b1d4-72c1b9948a22")),
     fontBytes,
@@ -624,7 +624,7 @@ static string[] SplitTokens(string field)
     => field.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
 
 static RenderSummary CheckRender(
-    SixLaborsTextService service,
+    DeltaTextService service,
     FontInstanceId font,
     float pixelsPerEm,
     string outputDirectory,
@@ -688,7 +688,7 @@ static RenderSummary CheckRender(
 }
 
 static FontFixtureSummary CheckFontFixture(
-    SixLaborsTextService service,
+    DeltaTextService service,
     string path,
     string outputDirectory,
     string expectedSha256)
@@ -735,7 +735,7 @@ static FontFixtureSummary CheckFontFixture(
 }
 
 static UnicodeRenderSummary CheckUnicodeRenderCoverage(
-    SixLaborsTextService service,
+    DeltaTextService service,
     FontInstanceId[] fallbackFonts,
     string fontName)
 {
@@ -900,7 +900,7 @@ static void ValidateCpuImage(
 }
 
 static RenderComparison CheckImageSharpReference(
-    SixLaborsTextService service,
+    DeltaTextService service,
     FontInstanceId font,
     ReadOnlySpan<byte> fontBytes,
     string outputDirectory,
@@ -928,7 +928,7 @@ static void RunShapeOnly(CheckOptions options)
     Require(actualFontSha256 == expectedIgrunokSha256,
         $"Unexpected Igrunok font SHA-256. Expected {expectedIgrunokSha256}, got {actualFontSha256}.");
     var sourceId = new FontSourceId(Guid.Parse("1b6cc7a2-6e49-4ca8-b6ce-8cc69a8d5a39"));
-    using var service = new SixLaborsTextService();
+    using var service = new DeltaTextService();
     var font = service.OpenFont(new FontOpenRequest(sourceId, fontBytes, 0));
 
     try
@@ -949,7 +949,7 @@ static void RunShapeOnly(CheckOptions options)
                 $"Shaping changed on repeat {iteration + 1}. Expected {expected}, got {actual}.");
         }
 
-        using var freshService = new SixLaborsTextService();
+        using var freshService = new DeltaTextService();
         var freshFont = freshService.OpenFont(new FontOpenRequest(sourceId, fontBytes, 0));
         try
         {
@@ -1044,7 +1044,7 @@ static void RunShapeOnly(CheckOptions options)
 }
 
 static RenderOutputSummary RenderShapeComparison(
-    SixLaborsTextService service,
+    DeltaTextService service,
     FontInstanceId font,
     ReadOnlySpan<byte> fontBytes,
     string fontPath,
@@ -1404,7 +1404,7 @@ static byte[] ToRgbaBytes(ImageRgba32[] pixels)
 }
 
 static ShapeSnapshot CaptureShape(
-    SixLaborsTextService service,
+    DeltaTextService service,
     FontInstanceId font,
     string text,
     float pixelsPerEm)

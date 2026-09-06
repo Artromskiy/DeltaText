@@ -6,7 +6,7 @@ using ContractFontMetrics = Delta.Text.Contract.FontMetrics;
 namespace Delta.Text;
 
 /// <summary>SixLabors.Fonts-backed implementation of the canonical DeltaText service.</summary>
-public class SixLaborsTextService : ITextService
+public class DeltaTextService : ITextService
 {
     private readonly object _gate = new();
     private readonly Dictionary<FontInstanceId, FontFace> _fonts = new();
@@ -15,7 +15,7 @@ public class SixLaborsTextService : ITextService
     private int _disposed;
 
     /// <summary>Creates a thread-safe text service with implementation-owned scratch storage.</summary>
-    public SixLaborsTextService()
+    public DeltaTextService()
     {
         _shaping = new TextShapingPipeline(GetFont);
     }
