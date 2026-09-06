@@ -15,20 +15,26 @@ returns owned glyph images and metrics for CPU previews or a renderer.
 ## Quick start
 
 ```xml
-<PackageReference Include="DeltaText" Version="0.0.8" />
+<PackageReference Include="DeltaText" Version="*" />
 ```
 
 ```csharp
 using Delta.Text;
 using Delta.Text.Contract;
+using System;
+using System.IO;
 
 using ITextService text = new SixLaborsTextService();
 byte[] fontBytes = File.ReadAllBytes("font.ttf");
+FontSourceId source = new(Guid.NewGuid());
 FontInstanceId font = text.OpenFont(new FontOpenRequest(
-    "embedded-font", fontBytes, 0));
-ShapedText shaped = text.Shape(new TextShapeRequest(
-    "Hello".AsMemory(), 32f, new[] { font }));
-CpuTextImage image = new CpuTextRenderer(text).Render(shaped);
+    source, fontBytes, 0));
+TextShapeRequest request = new(
+    "Hello".AsMemory(), 32f, new[] { font });
+ShapedText shaped = text.Shape(request);
+CpuTextImage image = new CpuTextRenderer(text).Render(
+    request,
+    new CpuTextRenderOptions(GlyphImageMode.Coverage, 0, new Rgba32(255, 255, 255, 255)));
 ```
 
 The application owns the returned shaped text and pixel snapshots and disposes

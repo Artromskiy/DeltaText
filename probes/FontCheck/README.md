@@ -57,11 +57,11 @@ advance and offset values. Add `--render-png` to also save a CoreText image and
 an independent ImageSharp reference image from the same shaped result.
 
 ```bash
-SixLaborsLicenseFile=/Users/rum/GitProjects/TheFurnace/Furnace/Licenses/SixLabors.lic \
+SixLaborsLicenseFile="${SIXLABORS_LICENSE_FILE:-../Furnace/Licenses/SixLabors.lic}" \
 dotnet run --project probes/FontCheck/FontCheck.csproj -c Release -- \
   --shape-only \
   --render-png \
-  --font /Users/rum/Downloads/Igrunok-SP/IgrunokSPDemo-Black.otf \
+  --font /path/to/IgrunokSPDemo-Black.otf \
   --pixels-per-em 70 \
   --output /tmp/delta-text-igrunok-shape
 ```
@@ -72,7 +72,7 @@ the repository by this check.
 Run from the DeltaText repository:
 
 ```bash
-SixLaborsLicenseFile=/Users/rum/GitProjects/TheFurnace/Furnace/Licenses/SixLabors.lic \
+SixLaborsLicenseFile="${SIXLABORS_LICENSE_FILE:-../Furnace/Licenses/SixLabors.lic}" \
 dotnet run --project probes/FontCheck/FontCheck.csproj -c Release -- \
   --bidi-corpus probes/FontCheck/Fixtures/BidiCharacterTest.txt \
   --bidi-test probes/FontCheck/Fixtures/BidiTest.txt \
