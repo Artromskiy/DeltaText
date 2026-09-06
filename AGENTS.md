@@ -1,26 +1,21 @@
-# DeltaText agent guide
+# DeltaText agent router
 
 Scope: renderer-neutral font identity, SixLabors.Fonts shaping/outlines,
-positioned glyphs and CPU SDF/MSDF generation. It owns no XAML, Vulkan, SDL or
-shaders.
+positioned glyphs and CPU SDF/MSDF generation. DeltaText owns no XAML, Vulkan,
+SDL or shader runtime and publishes renderer-neutral glyph images/data.
 
-- [README.md](README.md) — short project overview and navigation.
-- [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative v1 data model, ownership,
-  JSON shape and standards boundary.
-- [TODO.md](TODO.md) — selected text work.
-- [IDEAS.md](IDEAS.md) — deferred backend/cache options.
-- [WORKFLOW.md](WORKFLOW.md) — managed/native build, tests and fixture export.
-- [DECISIONS.md](DECISIONS.md) — backend and ownership decisions.
-- [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — required legal metadata.
-- [../CONTRACTS.md](../CONTRACTS.md) — text/render ownership; project
-  `TODO.md` contains the selected implementation work.
+## Map — open only as needed
 
-SixLabors.Fonts is the only build-time font-processing dependency; the released
-DeltaText package bundles its assembly and exposes no SixLabors package
-dependency. Pixel storage,
-coverage/SDF/MSDF/color rasterization and returned image ownership stay in
-managed DeltaText code. ImageSharp, FreeType, HarfBuzz native assets and a
-native MSDF bridge are not runtime dependencies.
+- ../CODE_STYLE.md — technical ownership, allocation and cache rules.
+- ../CONTRACTS.md — text/render ownership; open only for a boundary task.
+- IDEAS.md — backend/cache research/options only when requested.
+- WORKFLOW.md — managed/native build, tests and fixture export.
+- PUBLIC_CONTRACT.md — frozen public data model and ownership boundary.
+- USER_API.md — user-facing text API; open only for public API/documentation work.
+- INTERNAL.md and DECISIONS.md — implementation ownership and durable decisions.
+- src/DeltaText — production shaping/rasterization.
+- tests, probes, benchmarks — verification, focused checks and measured workloads.
 
-Skills: `performance-speedup` for shaping/cache workloads and
-`static-analysis` for ownership review.
+SixLabors.Fonts is build-time only; released DeltaText exposes no SixLabors
+package dependency. ImageSharp, FreeType, HarfBuzz native assets and native
+MSDF bridges are not runtime dependencies.
