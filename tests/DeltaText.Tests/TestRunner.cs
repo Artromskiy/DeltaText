@@ -97,6 +97,7 @@ internal static class TestRunner
         var coverage = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Coverage));
         var sdf4 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Sdf, 4));
         var sdf8 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Sdf, 8));
+        var msdf4 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Msdf, 4));
         Check(coverage.PixelsPerEm == pixelsPerEm, "coverage image lost the requested device size");
         Check(sdf4.PixelsPerEm == pixelsPerEm && sdf8.PixelsPerEm == pixelsPerEm,
             "distance image lost the requested device size");
@@ -105,6 +106,46 @@ internal static class TestRunner
             "SDF padding did not grow symmetrically with distance range");
         Check(sdf4.Width > coverage.Width && sdf4.Height > coverage.Height,
             "SDF guard field is not present around the small glyph");
+        CheckSymmetricDistanceBounds(coverage, sdf4, 5);
+        Check(msdf4.Encoding == GlyphImageEncoding.MsdfRgb8 && msdf4.Pixels.Length == msdf4.Width * msdf4.Height * 3,
+            "MSDF small-glyph payload is malformed");
+        CheckSymmetricDistanceBounds(coverage, msdf4, 5);
+        CheckOutsideDistanceEdge(sdf4, 1);
+        CheckOutsideDistanceEdge(msdf4, 3);
+    }
+
+    private static void CheckSymmetricDistanceBounds(GlyphImage coverage, GlyphImage distance, float margin)
+    {
+        Check(Maths.Abs(distance.PlaneBounds.Left - coverage.PlaneBounds.Left + margin) < 0.0001f,
+            $"{distance.Encoding} left plane margin is not symmetric");
+        Check(Maths.Abs(distance.PlaneBounds.Top - coverage.PlaneBounds.Top + margin) < 0.0001f,
+            $"{distance.Encoding} top plane margin is not symmetric");
+        Check(Maths.Abs(distance.PlaneBounds.Right - coverage.PlaneBounds.Right - margin) < 0.0001f,
+            $"{distance.Encoding} right plane margin is not symmetric");
+        Check(Maths.Abs(distance.PlaneBounds.Bottom - coverage.PlaneBounds.Bottom - margin) < 0.0001f,
+            $"{distance.Encoding} bottom plane margin is not symmetric");
+    }
+
+    private static void CheckOutsideDistanceEdge(GlyphImage image, int bytesPerPixel)
+    {
+        var pixels = image.Pixels.Span;
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                if (x != 0 && y != 0 && x != image.Width - 1 && y != image.Height - 1)
+                {
+                    continue;
+                }
+
+                var index = (y * image.Width + x) * bytesPerPixel;
+                for (var channel = 0; channel < bytesPerPixel; channel++)
+                {
+                    Check(pixels[index + channel] == 0,
+                        $"{image.Encoding} edge texel was not saturated outside at ({x},{y}), channel {channel}");
+                }
+            }
+        }
     }
 
     private static void LatinUiSmokeFixture()
