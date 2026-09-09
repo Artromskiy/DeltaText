@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DeltaText</AssemblyName>
     <PackageId>DeltaText</PackageId>
-    <Version>0.0.8</Version>
+    <Version>0.0.9</Version>
     <Authors>Artromskiy</Authors>
     <Description>Renderer-neutral text shaping and managed glyph image generation for .NET.</Description>
     <PackageTags>text;shaping;fonts;glyphs;sdf;msdf</PackageTags>
