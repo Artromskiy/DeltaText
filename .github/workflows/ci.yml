@@ -73,6 +73,7 @@ jobs:
             --output "$RUNNER_TEMP/sixlabors-feed" \
             -p:PackageId=SixLabors.Fonts.Delta \
             -p:PackageVersion="$SIXLABORS_FONTS_PACKAGE_VERSION" \
+            -p:MinVerVersionOverride="$SIXLABORS_FONTS_PACKAGE_VERSION" \
             -p:RepositoryUrl=https://github.com/Artromskiy/Fonts \
             --disable-build-servers -m:1 /p:UseSharedCompilation=false
 
@@ -89,8 +90,14 @@ jobs:
       - name: Restore
         run: |
           dotnet restore src/DeltaText/DeltaText.csproj \
+            --source "$RUNNER_TEMP/sixlabors-feed" \
+            --source "$NUGET_GITHUB_SOURCE" \
+            --source https://api.nuget.org/v3/index.json \
             -p:SixLaborsFontsPackageSource="$RUNNER_TEMP/sixlabors-feed"
           dotnet restore tests/DeltaText.Tests/DeltaText.Tests.csproj \
+            --source "$RUNNER_TEMP/sixlabors-feed" \
+            --source "$NUGET_GITHUB_SOURCE" \
+            --source https://api.nuget.org/v3/index.json \
             -p:SixLaborsFontsPackageSource="$RUNNER_TEMP/sixlabors-feed"
 
       - name: Release build
