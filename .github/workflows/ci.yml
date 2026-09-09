@@ -17,7 +17,7 @@ concurrency:
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_NOLOGO: 1
-  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  NUGET_PACKAGES: ${{ github.workspace }}/artifacts/.nuget/packages
   NUGET_GITHUB_SOURCE: https://nuget.pkg.github.com/Artromskiy/index.json
   SIXLABORS_FONTS_COMMIT: c68b27d683c701ca254d5cfc6487c699954f19ff
   SIXLABORS_FONTS_PACKAGE_VERSION: 3.1.0-source.c68b27d
