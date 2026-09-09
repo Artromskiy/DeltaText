@@ -155,6 +155,15 @@ The current local license is kept outside Git at
 `Furnace/Licenses/SixLabors.lic`. The managed build is otherwise the same on
 Linux, macOS and Windows.
 
+The GitHub Actions test workflow is `.github/workflows/ci.yml`. It restores
+`DeltaMaths` and `SixLabors.Fonts.Delta` from the Artromskiy GitHub Packages
+feed and requires the repository secret `SIXLABORS_LICENSE` containing the
+Six Labors license file contents. The secret is materialized only in the
+runner's temporary directory; it is not logged or committed. Fork pull
+requests without access to repository secrets cannot run this workflow until
+the required package and license inputs are made available by the repository
+owner.
+
 ## NuGet
 
 NuGet has only the workspace `dev` and `release` modes. Run them from the

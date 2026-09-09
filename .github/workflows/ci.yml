@@ -1,0 +1,86 @@
+name: Build and tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: delta-text-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  SIXLABORS_FONTS_PACKAGE_SOURCE: https://nuget.pkg.github.com/Artromskiy/index.json
+
+jobs:
+  validate:
+    name: Release tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: delta-text-nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: delta-text-nuget-${{ runner.os }}-
+
+      - name: Configure GitHub Packages
+        env:
+          PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget add source "$SIXLABORS_FONTS_PACKAGE_SOURCE" \
+            --name artromskiy-github \
+            --username "$GITHUB_ACTOR" \
+            --password "$PACKAGE_TOKEN" \
+            --store-password-in-clear-text
+
+      - name: Materialize SixLabors license
+        env:
+          SIXLABORS_LICENSE: ${{ secrets.SIXLABORS_LICENSE }}
+        run: |
+          if [ -z "$SIXLABORS_LICENSE" ]; then
+            echo "::error::Repository secret SIXLABORS_LICENSE is required for the build-time SixLabors.Fonts package."
+            exit 1
+          fi
+          printf '%s\n' "$SIXLABORS_LICENSE" > "$RUNNER_TEMP/sixlabors.lic"
+
+      - name: Validate repository layout
+        run: ./eng/check-layout.sh
+
+      - name: Restore
+        run: |
+          dotnet restore src/DeltaText/DeltaText.csproj \
+            -p:SixLaborsFontsPackageSource="$SIXLABORS_FONTS_PACKAGE_SOURCE"
+          dotnet restore tests/DeltaText.Tests/DeltaText.Tests.csproj \
+            -p:SixLaborsFontsPackageSource="$SIXLABORS_FONTS_PACKAGE_SOURCE"
+
+      - name: Release build
+        env:
+          SixLaborsLicenseFile: ${{ runner.temp }}/sixlabors.lic
+        run: |
+          dotnet build src/DeltaText/DeltaText.csproj -c Release --no-restore \
+            --disable-build-servers -m:1 /p:UseSharedCompilation=false
+          dotnet build tests/DeltaText.Tests/DeltaText.Tests.csproj -c Release --no-restore \
+            --disable-build-servers -m:1 /p:UseSharedCompilation=false
+
+      - name: Run managed tests
+        run: |
+          dotnet run --project tests/DeltaText.Tests/DeltaText.Tests.csproj \
+            -c Release --no-build --no-restore
