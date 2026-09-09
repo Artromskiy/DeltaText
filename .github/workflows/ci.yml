@@ -43,6 +43,9 @@ jobs:
           key: delta-text-nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: delta-text-nuget-${{ runner.os }}-
 
+      - name: Validate repository layout
+        run: ./eng/check-layout.sh
+
       - name: Configure GitHub Packages
         env:
           PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,9 +85,6 @@ jobs:
             exit 1
           fi
           printf '%s\n' "$SIXLABORS_LICENSE" > "$RUNNER_TEMP/sixlabors.lic"
-
-      - name: Validate repository layout
-        run: ./eng/check-layout.sh
 
       - name: Restore
         run: |
