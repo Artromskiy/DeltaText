@@ -156,13 +156,15 @@ The current local license is kept outside Git at
 Linux, macOS and Windows.
 
 The GitHub Actions test workflow is `.github/workflows/ci.yml`. It restores
-`DeltaMaths` and `SixLabors.Fonts.Delta` from the Artromskiy GitHub Packages
-feed and requires the repository secret `SIXLABORS_LICENSE` containing the
-Six Labors license file contents. The secret is materialized only in the
-runner's temporary directory; it is not logged or committed. Fork pull
-requests without access to repository secrets cannot run this workflow until
-the required package and license inputs are made available by the repository
-owner.
+`DeltaMaths` from the Artromskiy GitHub Packages feed, checks out the pinned
+Fonts fork at `c68b27d683c701ca254d5cfc6487c699954f19ff`, initializes only its
+required build submodules, and packs `SixLabors.Fonts.Delta` into the runner's
+temporary NuGet feed. It also requires the repository secret
+`SIXLABORS_LICENSE` containing the Six Labors license file contents. The
+secret is materialized only in the runner's temporary directory; it is not
+logged or committed. Fork pull requests without access to repository secrets
+cannot run this workflow until the required package and license inputs are
+made available by the repository owner.
 
 ## NuGet
 
