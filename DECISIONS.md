@@ -5,7 +5,7 @@ The durable producer boundary is documented in
 [INTERNAL.md](INTERNAL.md); this file remains as a navigation point for older
 project links.
 
-## Managed MSDF backend
+## Managed MSDF/MTSDF backend
 
 The MSDF backend is implemented in managed C# and consumes contours extracted
 through SixLabors.Fonts. SixLabors.Fonts remains the font and outline source; it
@@ -20,7 +20,7 @@ SixLabors.Fonts outline callbacks
     -> immutable glyph contour model
     -> normalized line/quadratic/cubic edges
     -> deterministic edge coloring
-    -> per-channel signed-distance rasterization
+    -> per-channel signed-distance rasterization plus true SDF alpha for MTSDF
     -> tightly packed GlyphImage
 ```
 
@@ -34,10 +34,12 @@ than one large renderer:
 - `MsdfEncoder` applies the distance range and writes the final byte payload.
 
 The managed path must not create atlas pages, UVs or GPU resources. It owns the
-MSDF generation path: curves are flattened to a bounded pixel tolerance,
-corners receive deterministic channel colors, and a compact grid limits
-distance candidates in the pixel loop. Parallelism is a later
+MSDF/MTSDF generation path: curves are flattened to a bounded pixel tolerance,
+corners receive deterministic channel colors, MTSDF stores the true signed
+distance in alpha, and a compact grid limits distance candidates in the pixel
+loop. Parallelism is a later
 measurement-driven step; correctness and deterministic output come first.
 
-The managed backend is internal and returns a tightly packed RGB8 `GlyphImage`
-representation. It has no ImageSharp, C++ or native MSDF runtime dependency.
+The managed backend is internal and returns a tightly packed RGB8 or RGBA8
+`GlyphImage` representation. It has no ImageSharp, C++ or native MSDF runtime
+dependency.

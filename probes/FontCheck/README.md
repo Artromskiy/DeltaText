@@ -15,7 +15,7 @@ The check covers four different questions:
 3. A Noto Sans/Noto Sans Arabic fallback chain checks Unicode render probes for Latin, Cyrillic, Arabic,
    Hebrew, Indic, Thai, CJK, combining marks, emoji, mixed-direction text,
    controls and unsupported/noncharacter inputs. Valid probes validate grapheme
-   and line-break coverage, shaped clusters/metrics, and all four image modes;
+   and line-break coverage, shaped clusters/metrics, and all five image modes;
    noncharacters are checked against the producer's documented rejection
    contract.
 4. The CPU renderer checks that the same shaped output composes into a stable

@@ -98,6 +98,7 @@ internal static class TestRunner
         var sdf4 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Sdf, 4));
         var sdf8 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Sdf, 8));
         var msdf4 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Msdf, 4));
+        var mtsdf4 = service.GenerateGlyphImage(new GlyphImageRequest(font, glyphId, pixelsPerEm, GlyphImageMode.Mtsdf, 4));
         Check(coverage.PixelsPerEm == pixelsPerEm, "coverage image lost the requested device size");
         Check(sdf4.PixelsPerEm == pixelsPerEm && sdf8.PixelsPerEm == pixelsPerEm,
             "distance image lost the requested device size");
@@ -112,6 +113,23 @@ internal static class TestRunner
         CheckSymmetricDistanceBounds(coverage, msdf4, 5);
         CheckOutsideDistanceEdge(sdf4, 1);
         CheckOutsideDistanceEdge(msdf4, 3);
+        Check(mtsdf4.Encoding == GlyphImageEncoding.MtsdfRgba8
+            && mtsdf4.Pixels.Length == mtsdf4.Width * mtsdf4.Height * 4,
+            "MTSDF small-glyph payload is malformed");
+        Check(mtsdf4.Width == sdf4.Width && mtsdf4.Height == sdf4.Height,
+            "MTSDF dimensions diverged from SDF dimensions");
+        CheckSymmetricDistanceBounds(coverage, mtsdf4, 5);
+        CheckOutsideDistanceEdge(mtsdf4, 4);
+        for (var pixel = 0; pixel < sdf4.Width * sdf4.Height; pixel++)
+        {
+            Check(mtsdf4.Pixels.Span[pixel * 4 + 3] == sdf4.Pixels.Span[pixel],
+                "MTSDF alpha channel is not the true signed-distance field");
+            for (var channel = 0; channel < 3; channel++)
+            {
+                Check(mtsdf4.Pixels.Span[pixel * 4 + channel] == msdf4.Pixels.Span[pixel * 3 + channel],
+                    "MTSDF RGB channel diverged from MSDF output");
+            }
+        }
     }
 
     private static void CheckSymmetricDistanceBounds(GlyphImage coverage, GlyphImage distance, float margin)
@@ -536,6 +554,12 @@ internal static class TestRunner
             new Rgba32(220, 96, 24, 255)));
         Check(!msdf.IsEmpty && msdf.Pixels.Span.ToArray().Any(static value => value != 0), "CPU MSDF render is empty");
 
+        var mtsdf = renderer.Render(request, new CpuTextRenderOptions(
+            GlyphImageMode.Mtsdf,
+            4,
+            new Rgba32(220, 96, 24, 255)));
+        Check(!mtsdf.IsEmpty && mtsdf.Pixels.Span.ToArray().Any(static value => value != 0), "CPU MTSDF render is empty");
+
         var color = renderer.Render(request, new CpuTextRenderOptions(
             GlyphImageMode.Color,
             0,
@@ -551,6 +575,9 @@ internal static class TestRunner
         AssertThrows<ArgumentOutOfRangeException>(
             () => renderer.Render(request, new CpuTextRenderOptions(GlyphImageMode.Msdf, 0, default)),
             "CPU renderer accepted a zero distance range");
+        AssertThrows<ArgumentOutOfRangeException>(
+            () => renderer.Render(request, new CpuTextRenderOptions(GlyphImageMode.Mtsdf, 0, default)),
+            "CPU renderer accepted a zero MTSDF distance range");
     }
 
     private static void GlyphImageBaselinePlacement()
@@ -713,6 +740,15 @@ internal static class TestRunner
             8));
         Check(image.Encoding == GlyphImageEncoding.MsdfRgb8, "MSDF encoding is wrong");
         Check(image.Pixels.Length == image.Width * image.Height * 3, "MSDF image is not tightly packed");
+
+        var mtsdf = service.GenerateGlyphImage(new GlyphImageRequest(
+            font,
+            shaped.Runs.Span[0].Glyphs.Span[0].GlyphId,
+            32,
+            GlyphImageMode.Mtsdf,
+            8));
+        Check(mtsdf.Encoding == GlyphImageEncoding.MtsdfRgba8, "MTSDF encoding is wrong");
+        Check(mtsdf.Pixels.Length == mtsdf.Width * mtsdf.Height * 4, "MTSDF image is not tightly packed");
     }
 
     private static void ManagedMsdfGeneration()

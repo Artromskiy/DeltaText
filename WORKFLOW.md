@@ -105,8 +105,8 @@ package is built from the official `SixLabors/Fonts` repository at commit
 `Fix signed fractional CFF coordinates`). The package ID and version are
 declared once in `src/DeltaText/DeltaText.csproj`; this workflow does not copy
 that version. DeltaText keeps the returned pixels and performs coverage, SDF,
-MSDF and color rasterization in managed C#. There is no native font or MSDF DLL
-to copy, and no ImageSharp runtime dependency.
+MSDF, MTSDF and color rasterization in managed C#. There is no native font or
+MSDF DLL to copy, and no ImageSharp runtime dependency.
 
 The source snapshot is repackaged as `SixLabors.Fonts.Delta` for the build-only
 input kept outside Git at

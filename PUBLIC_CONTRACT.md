@@ -1,4 +1,4 @@
-# DeltaText public contract v1.2
+# DeltaText public contract v1.3
 
 ## Purpose
 
@@ -20,8 +20,8 @@ DeltaText owns:
 - immutable font bytes and font-backend state between `OpenFont` and
   `CloseFont`;
 - OpenType shaping, fallback resolution and scaled font metrics;
-- glyph outline interpretation and generation of unpacked coverage, SDF, MSDF
-  or flattened color-glyph images;
+- glyph outline interpretation and generation of unpacked coverage, SDF, MSDF,
+  MTSDF or flattened color-glyph images;
 - owned immutable arrays returned by `ShapedText` and `GlyphImage`.
 
 The consumer owns:
@@ -31,7 +31,7 @@ The consumer owns:
   eviction;
 - pixel conversion required by the selected Vulkan image format;
 - staging, dirty uploads, descriptors, pipelines, batching and GPU lifetime;
-- draw colors for monochrome coverage/SDF/MSDF text.
+- draw colors for monochrome coverage/SDF/MSDF/MTSDF text.
 
 Consequently, none of the following belongs in the DeltaText public contract:
 
@@ -201,7 +201,7 @@ producer API. It renders Doto at 64/128 px and Luckiest Guy at 48/96 px, uses a
 Noto Sans/Noto Sans Arabic fallback chain for Latin, Cyrillic and Arabic
 coverage, and probes Hebrew, Indic, Thai, CJK, combining marks, emoji, mixed
 direction text and controls. Valid probes must produce finite shaped metrics,
-valid source clusters and tightly packed Coverage/SDF/MSDF/Color images. A
+valid source clusters and tightly packed Coverage/SDF/MSDF/MTSDF/Color images. A
 separate supersampled outline callback path with ImageSharp bitmap/PNG output
 compares Coverage images; the accepted alignment is at most one pixel and the
 alpha thresholds are `32/255` mean and `224/255` at the 95th percentile.
@@ -222,6 +222,7 @@ The supported contract encodings are:
 | `SdfR8` | 1 byte/pixel | unsigned normalized signed distance |
 | `MsdfRgb8` | 3 bytes/pixel | unsigned normalized multi-channel distance |
 | `ColorRgba8PremultipliedSrgb` | 4 bytes/pixel | flattened color-font presentation |
+| `MtsdfRgba8` | 4 bytes/pixel | RGB multi-channel distance plus true signed distance in alpha |
 
 Pixels are row-major from top to bottom and are always tightly packed. Their
 length is exactly `Width * Height * bytesPerPixel`. There is no public stride
@@ -231,10 +232,12 @@ directly; no native image buffer is involved.
 `PlaneBounds` maps the complete image, including the distance-field border, to
 baseline-relative device coordinates. Whitespace or another glyph with no
 visible image is represented by zero width, zero height and empty pixels; it
-does not require an atlas entry. Coverage, SDF, MSDF and color pixels are
+does not require an atlas entry. Coverage, SDF, MSDF, MTSDF and color pixels are
 rasterized by DeltaText from outline data returned by SixLabors.Fonts.
 
-SDF and MSDF requests use `DistanceRange`. Atlas spacing is separate and is
+SDF, MSDF and MTSDF requests use `DistanceRange`. MTSDF stores the per-edge
+MSDF channels in RGB and the true signed distance in alpha, allowing consumers
+to select the field that matches an effect. Atlas spacing is separate and is
 owned by the packer. Color requests include a palette index and foreground
 color. Color layers exposed by SixLabors.Fonts are flattened by DeltaText so
 the default palette selection is deterministic. The pinned SixLabors.Fonts fork

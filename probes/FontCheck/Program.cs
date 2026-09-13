@@ -786,6 +786,7 @@ static UnicodeRenderSummary CheckUnicodeRenderCoverage(
             GlyphImageMode.Coverage,
             GlyphImageMode.Sdf,
             GlyphImageMode.Msdf,
+            GlyphImageMode.Mtsdf,
             GlyphImageMode.Color,
         };
         for (var modeIndex = 0; modeIndex < modes.Length; modeIndex++)
@@ -793,7 +794,7 @@ static UnicodeRenderSummary CheckUnicodeRenderCoverage(
             var mode = modes[modeIndex];
             var image = renderer.Render(request, new CpuTextRenderOptions(
                 mode,
-                mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf ? distanceRange : 0,
+                mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf or GlyphImageMode.Mtsdf ? distanceRange : 0,
                 new Rgba32(231, 237, 255, 255)));
             ValidateCpuImage(probe, fontName, mode, image);
             checksum = AppendFnv1a64(checksum, image.Pixels.Span);

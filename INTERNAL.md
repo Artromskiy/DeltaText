@@ -53,9 +53,11 @@ for preview or UI loops that retain a shaped result. The request overload is a
 convenience operation and still shapes on every call; callers should retain
 `ShapedText` when its input and shaping options are unchanged.
 
-Coverage, SDF, MSDF and color rasterization are all managed. MSDF consumes the
-SixLabors.Fonts outline callbacks, flattens curves to a bounded pixel tolerance
-and generates deterministic RGB8 pixels. Its geometric values use
+Coverage, SDF, MSDF, MTSDF and color rasterization are all managed. MSDF and
+MTSDF consume the SixLabors.Fonts outline callbacks, flatten curves to a bounded
+pixel tolerance and generate deterministic RGB8 or RGBA8 pixels. MTSDF stores
+the true signed distance in alpha alongside the RGB channels. Their geometric
+values use
 `Delta.float2` and `Delta.Maths`; the only
 `System.Numerics.Vector2` reference is the private callback adapter required by
 SixLabors.Fonts. ImageSharp, SkiaSharp, FreeType and native MSDF assets are not

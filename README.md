@@ -8,7 +8,7 @@ returns owned glyph images and metrics for CPU previews or a renderer.
 - Immutable font instances and shaped glyph runs.
 - Unicode-aware text shaping through the public text service.
 - Grayscale coverage and SDF glyph images.
-- Managed MSDF and color glyph-image modes where supported by the input font.
+- Managed MSDF, MTSDF and color glyph-image modes where supported by the input font.
 - Owned pixel snapshots and glyph metrics that can outlive the shaping call.
 - A CPU renderer for producing an owned RGBA8 preview bitmap.
 

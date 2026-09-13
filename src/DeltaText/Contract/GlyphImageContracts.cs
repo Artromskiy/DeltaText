@@ -13,6 +13,8 @@ public enum GlyphImageMode : byte
     Msdf = 3,
     /// <summary>Flattened OpenType color glyph.</summary>
     Color = 4,
+    /// <summary>Three-channel MSDF with a true signed-distance alpha channel.</summary>
+    Mtsdf = 5,
 }
 
 /// <summary>Exact tightly packed pixel interpretation returned to consumers.</summary>
@@ -28,6 +30,8 @@ public enum GlyphImageEncoding : byte
     MsdfRgb8 = 3,
     /// <summary>Four premultiplied sRGB color bytes per pixel.</summary>
     ColorRgba8PremultipliedSrgb = 4,
+    /// <summary>Three unsigned normalized MSDF bytes plus one SDF byte per pixel.</summary>
+    MtsdfRgba8 = 5,
 }
 
 /// <summary>Eight-bit color used only to resolve color-font foreground paint.</summary>
@@ -41,7 +45,7 @@ public readonly record struct ColorGlyphOptions(ushort PaletteIndex, Rgba32 Fore
 /// <param name="GlyphId">Glyph identifier returned by shaping.</param>
 /// <param name="PixelsPerEm">Requested device size.</param>
 /// <param name="Mode">Requested image representation.</param>
-/// <param name="DistanceRange">Distance range in pixels for SDF/MSDF; zero otherwise.</param>
+/// <param name="DistanceRange">Distance range in pixels for SDF/MSDF/MTSDF; zero otherwise.</param>
 /// <param name="Color">Color-font palette input; ignored for non-color modes.</param>
 public readonly record struct GlyphImageRequest(
     FontInstanceId Font,

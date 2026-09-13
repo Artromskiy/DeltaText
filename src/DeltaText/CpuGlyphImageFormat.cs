@@ -11,6 +11,7 @@ internal static class CpuGlyphImageFormat
             GlyphImageMode.Sdf => GlyphImageEncoding.SdfR8,
             GlyphImageMode.Msdf => GlyphImageEncoding.MsdfRgb8,
             GlyphImageMode.Color => GlyphImageEncoding.ColorRgba8PremultipliedSrgb,
+            GlyphImageMode.Mtsdf => GlyphImageEncoding.MtsdfRgba8,
             _ => GlyphImageEncoding.Unknown
         };
 
@@ -20,6 +21,7 @@ internal static class CpuGlyphImageFormat
             GlyphImageEncoding.CoverageR8 or GlyphImageEncoding.SdfR8 => 1,
             GlyphImageEncoding.MsdfRgb8 => 3,
             GlyphImageEncoding.ColorRgba8PremultipliedSrgb => 4,
+            GlyphImageEncoding.MtsdfRgba8 => 4,
             _ => throw new InvalidDataException("Glyph image encoding is unknown to the CPU renderer.")
         };
 }

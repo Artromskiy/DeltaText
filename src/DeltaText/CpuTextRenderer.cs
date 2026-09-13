@@ -103,7 +103,7 @@ public sealed class CpuTextRenderer
             throw new ArgumentOutOfRangeException(nameof(options), "CPU text image mode must be specified.");
         }
 
-        if (options.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf)
+        if (options.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf or GlyphImageMode.Mtsdf)
         {
             if (!float.IsFinite(options.DistanceRange) || options.DistanceRange <= 0)
             {
@@ -112,7 +112,7 @@ public sealed class CpuTextRenderer
         }
         else if (options.DistanceRange != 0)
         {
-            throw new ArgumentException("Distance range is valid only for SDF and MSDF output.", nameof(options));
+            throw new ArgumentException("Distance range is valid only for SDF, MSDF and MTSDF output.", nameof(options));
         }
     }
 }

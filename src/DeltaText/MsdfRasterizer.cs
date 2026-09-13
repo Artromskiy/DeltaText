@@ -5,12 +5,19 @@ namespace Delta.Text;
 internal static class MsdfRasterizer
 {
     internal static byte[] Render(MsdfGeometry geometry, float distanceRange)
+        => Render(geometry, distanceRange, false);
+
+    internal static byte[] RenderMtsdf(MsdfGeometry geometry, float distanceRange)
+        => Render(geometry, distanceRange, true);
+
+    private static byte[] Render(MsdfGeometry geometry, float distanceRange, bool includeTrueDistance)
     {
         // INCOMPLETE / OBSOLETE-CANDIDATE: the current 3x3 grid neighborhood
         // and winding test are a deterministic managed baseline. Replace or
         // augment them with measured broad-phase and corner-quality validation
         // before treating this as a final high-volume rasterizer.
-        var pixels = new byte[checked(geometry.Width * geometry.Height * 3)];
+        var bytesPerPixel = includeTrueDistance ? 4 : 3;
+        var pixels = new byte[checked(geometry.Width * geometry.Height * bytesPerPixel)];
         var rangeSquared = distanceRange * distanceRange;
         var edges = geometry.Edges;
         var grid = geometry.Grid;
@@ -23,6 +30,7 @@ internal static class MsdfRasterizer
                 var green = rangeSquared;
                 var blue = rangeSquared;
                 var nearest = rangeSquared;
+                var trueNearest = rangeSquared;
                 var cellX = Maths.Clamp(x / grid.CellSize, 0, grid.Columns - 1);
                 var cellY = Maths.Clamp(y / grid.CellSize, 0, grid.Rows - 1);
                 for (var offsetY = -1; offsetY <= 1; offsetY++)
@@ -79,10 +87,22 @@ internal static class MsdfRasterizer
                     blue = nearest;
                 }
 
-                var pixel = checked((y * geometry.Width + x) * 3);
+                if (includeTrueDistance)
+                {
+                    for (var i = 0; i < edges.Length; i++)
+                    {
+                        trueNearest = Maths.Min(trueNearest, DistanceSquared(sample, edges[i].Start, edges[i].End));
+                    }
+                }
+
+                var pixel = checked((y * geometry.Width + x) * bytesPerPixel);
                 pixels[pixel] = MsdfEncoder.Encode(sign * Maths.Sqrt(red), distanceRange);
                 pixels[pixel + 1] = MsdfEncoder.Encode(sign * Maths.Sqrt(green), distanceRange);
                 pixels[pixel + 2] = MsdfEncoder.Encode(sign * Maths.Sqrt(blue), distanceRange);
+                if (includeTrueDistance)
+                {
+                    pixels[pixel + 3] = MsdfEncoder.Encode(sign * Maths.Sqrt(trueNearest), distanceRange);
+                }
             }
         }
 

@@ -15,6 +15,7 @@ internal static class CpuDistanceDecoder
             GlyphImageEncoding.CoverageR8 => source[sourceIndex] / 255f,
             GlyphImageEncoding.SdfR8 => DecodeDistance(source[sourceIndex], distanceRange),
             GlyphImageEncoding.MsdfRgb8 => DecodeMsdf(source, sourceIndex, distanceRange),
+            GlyphImageEncoding.MtsdfRgba8 => DecodeMsdf(source, sourceIndex, distanceRange),
             _ => throw new InvalidDataException("Glyph image encoding is not supported by the CPU renderer.")
         };
 

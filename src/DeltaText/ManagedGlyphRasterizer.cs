@@ -16,7 +16,7 @@ internal static class ManagedGlyphRasterizer
         GlyphOutline outline,
         Rgba32 foreground)
     {
-        var hasDistance = mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf;
+        var hasDistance = mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf or GlyphImageMode.Mtsdf;
         var padding = hasDistance ? checked((int)Maths.Ceil(distanceRange)) : 0;
         var pixelSize = Maths.Max(1, (int)Maths.Ceil(pixelsPerEm));
         var effectiveRange = hasDistance ? distanceRange : 1;
@@ -57,6 +57,16 @@ internal static class ManagedGlyphRasterizer
                 bounds,
                 RenderSdf(geometry, distanceRange)),
             GlyphImageMode.Msdf => RenderMsdf(font, glyphId, pixelsPerEm, distanceRange, first.Contours, pixelSize, padding, bounds),
+            GlyphImageMode.Mtsdf => new GlyphImage(
+                font,
+                glyphId,
+                pixelsPerEm,
+                GlyphImageEncoding.MtsdfRgba8,
+                distanceRange,
+                geometry.Width,
+                geometry.Height,
+                bounds,
+                MsdfRasterizer.RenderMtsdf(geometry, distanceRange)),
             GlyphImageMode.Color => RenderColor(font, glyphId, pixelsPerEm, geometry, layers, foreground, bounds),
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
@@ -273,9 +283,10 @@ internal static class ManagedGlyphRasterizer
                 GlyphImageMode.Sdf => GlyphImageEncoding.SdfR8,
                 GlyphImageMode.Msdf => GlyphImageEncoding.MsdfRgb8,
                 GlyphImageMode.Color => GlyphImageEncoding.ColorRgba8PremultipliedSrgb,
+                GlyphImageMode.Mtsdf => GlyphImageEncoding.MtsdfRgba8,
                 _ => GlyphImageEncoding.Unknown
             },
-            mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf ? distanceRange : 0,
+            mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf or GlyphImageMode.Mtsdf ? distanceRange : 0,
             0,
             0,
             default,

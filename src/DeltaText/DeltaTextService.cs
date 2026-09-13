@@ -203,9 +203,12 @@ public class DeltaTextService : ITextService
                 GlyphImageMode.Sdf => GlyphImageEncoding.SdfR8,
                 GlyphImageMode.Msdf => GlyphImageEncoding.MsdfRgb8,
                 GlyphImageMode.Color => GlyphImageEncoding.ColorRgba8PremultipliedSrgb,
+                GlyphImageMode.Mtsdf => GlyphImageEncoding.MtsdfRgba8,
                 _ => GlyphImageEncoding.Unknown
             },
-            request.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf ? request.DistanceRange : 0,
+            request.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf or GlyphImageMode.Mtsdf
+                ? request.DistanceRange
+                : 0,
             0,
             0,
             default,
@@ -294,7 +297,7 @@ public class DeltaTextService : ITextService
             throw new ArgumentOutOfRangeException(nameof(request), "Glyph image mode must be specified.");
         }
 
-        if (request.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf
+        if (request.Mode is GlyphImageMode.Sdf or GlyphImageMode.Msdf or GlyphImageMode.Mtsdf
             && (!float.IsFinite(request.DistanceRange) || request.DistanceRange <= 0 || request.DistanceRange > 4096))
         {
             throw new ArgumentOutOfRangeException(nameof(request), "Distance range must be finite and greater than zero.");

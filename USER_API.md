@@ -66,16 +66,17 @@ RGBA8 snapshot. `CpuTextImage.Bounds` is relative to the text baseline and
 describes the returned bitmap; transparent pixels outside glyphs are included
 inside that rectangle. The helper borrows `ITextService` and font instances
 only for the duration of `Render`; it does not own fonts, caches, atlases or
-GPU resources. SDF and MSDF are decoded with a half-pixel CPU antialiasing
-transition using the image's distance range.
+GPU resources. SDF, MSDF and MTSDF are decoded with a half-pixel CPU
+antialiasing transition using the image's distance range. The CPU compositor
+uses the median of MTSDF's RGB channels; consumers needing a true signed
+distance for effects can read its alpha channel directly.
 
-The service supports coverage, grayscale SDF, MSDF and flattened RGBA color
-images. SixLabors.Fonts supplies the font and outline data; DeltaText performs
+The service supports coverage, grayscale SDF, MSDF, MTSDF and flattened RGBA
+color images. SixLabors.Fonts supplies the font and outline data; DeltaText performs
 the rasterization and owns the returned pixels. Color glyph layers exposed by
 SixLabors.Fonts are flattened into the same owned RGBA image. If a format does
 not expose an outline through the package, the requested color image uses the
-documented foreground-outline fallback. MTSDF remains an explicitly
-unsupported representation.
+documented foreground-outline fallback.
 
 Unicode boundaries are available independently of fonts and shaping:
 
