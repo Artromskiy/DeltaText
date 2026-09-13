@@ -29,6 +29,7 @@ internal static class TestRunner
         ("glyph images preserve baseline-relative vertical placement", GlyphImageBaselinePlacement),
         ("CPU renderer composes owned RGBA text images", CpuTextRendering),
         ("managed MSDF is deterministic and channel-separated", ManagedMsdfGeneration),
+        ("MTSDF filtered contours remain stable at expanded ranges", MtsdfFilteredContour),
         ("MSDF image is optional and renderer-neutral", MsdfImage),
         ("invalid requests are rejected", InvalidRequests),
         ("font lifetime rejects closed instances", FontLifetime),
@@ -807,6 +808,68 @@ internal static class TestRunner
 
         Check(curvedWidth > 0 && curvedHeight > 0 && curvedPixels.Length == curvedWidth * curvedHeight * 3,
             "managed MSDF quadratic contour payload is malformed");
+    }
+
+    private static void MtsdfFilteredContour()
+    {
+        var contours = new GlyphContours();
+        contours.BeginContour(0, 0);
+        contours.LineTo(100, 15);
+        contours.LineTo(70, 100);
+        contours.LineTo(10, 80);
+        foreach (var range in new[] { 4f, 16f, 32f })
+        {
+            Check(MsdfGeometry.TryCreate(contours, 64, 100, (int)range + 1,
+                0xD37A5EEDu, range, out var geometry), "MTSDF geometry failed");
+            if (geometry is null)
+            {
+                throw new InvalidOperationException("MTSDF geometry is missing.");
+            }
+
+            var pixels = MsdfRasterizer.RenderMtsdf(geometry, range);
+            var checkedSamples = 0;
+            for (var y = 0; y < geometry.Height - 1; y++)
+            {
+                for (var x = 0; x < geometry.Width - 1; x++)
+                {
+                    for (var step = 1; step < 4; step++)
+                    {
+                        var fraction = step / 4f;
+                        var sample = SampleMtsdf(pixels, geometry.Width, x, y, fraction);
+                        var trueDistance = (sample.w / 255f - 0.5f) * 2 * range;
+                        if (Maths.Abs(trueDistance) > 0.25f)
+                        {
+                            continue;
+                        }
+
+                        var median = Maths.Max(Maths.Min(sample.x, sample.y),
+                            Maths.Min(Maths.Max(sample.x, sample.y), sample.z));
+                        Check(Maths.Abs(median - sample.w) <= 1f,
+                            $"filtered RGB contour diverges from true distance at range {range}");
+                        checkedSamples++;
+                    }
+                }
+            }
+
+            Check(checkedSamples > 30, "MTSDF contour regression did not sample enough boundary pixels");
+        }
+    }
+
+    private static float4 SampleMtsdf(byte[] pixels, int width, int x, int y, float fraction)
+    {
+        var result = new float4(0);
+        for (var dy = 0; dy < 2; dy++)
+        {
+            for (var dx = 0; dx < 2; dx++)
+            {
+                var index = ((y + dy) * width + x + dx) * 4;
+                var weight = (dx == 0 ? 1 - fraction : fraction)
+                    * (dy == 0 ? 1 - fraction : fraction);
+                result += new float4(pixels[index], pixels[index + 1], pixels[index + 2], pixels[index + 3]) * weight;
+            }
+        }
+
+        return result;
     }
 
     private static void FontLifetime()

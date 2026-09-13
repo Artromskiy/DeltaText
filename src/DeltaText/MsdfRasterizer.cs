@@ -95,6 +95,19 @@ internal static class MsdfRasterizer
                     }
                 }
 
+                // All channels use the contour winding sign. A distant colored
+                // edge must not amplify that sign change across a boundary texel:
+                // bilinear filtering would move the zero crossing and create spikes.
+                // Protect the contour's bilinear footprint with the true distance;
+                // keep the separated channels outside this filter and derivative band.
+                var contourDistance = includeTrueDistance ? trueNearest : nearest;
+                if (contourDistance <= 2f)
+                {
+                    red = contourDistance;
+                    green = contourDistance;
+                    blue = contourDistance;
+                }
+
                 var pixel = checked((y * geometry.Width + x) * bytesPerPixel);
                 pixels[pixel] = MsdfEncoder.Encode(sign * Maths.Sqrt(red), distanceRange);
                 pixels[pixel + 1] = MsdfEncoder.Encode(sign * Maths.Sqrt(green), distanceRange);
