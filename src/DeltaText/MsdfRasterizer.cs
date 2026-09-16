@@ -100,7 +100,7 @@ internal static class MsdfRasterizer
                 // bilinear filtering would move the zero crossing and create spikes.
                 // Protect the contour's bilinear footprint with the true distance;
                 // keep the separated channels outside this filter and derivative band.
-                var contourDistance = includeTrueDistance ? trueNearest : nearest;
+                var contourDistance = nearest;
                 if (contourDistance <= 2f)
                 {
                     red = contourDistance;
