@@ -198,7 +198,7 @@ internal sealed class TextShapingPipeline
             }
         }
 
-        // INCOMPLETE / OBSOLETE-CANDIDATE: the DeltaText SixLabors.Fonts fork build
+        // INCOMPLETE / OBSOLETE-CANDIDATE: the SixLabors.Fonts backend
         // adapter currently passes only global Boolean feature tags here. Keep
         // rejecting ranged, valued and language/script-specific requests until
         // the adapter can preserve their semantics instead of silently dropping

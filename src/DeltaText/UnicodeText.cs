@@ -7,8 +7,8 @@ namespace Delta.Text;
 /// Unicode text-boundary operations used by layout consumers.
 /// </summary>
 /// <remarks>
-/// The implementation uses the public Unicode property and grapheme APIs in
-/// The bundled SixLabors.Fonts fork build and copies the result into DeltaText-owned snapshots.
+/// The implementation uses SixLabors.Fonts public Unicode property and grapheme
+/// APIs, then copies the result into DeltaText-owned snapshots.
 /// SixLabors types never cross this API. Input is not normalized.
 /// </remarks>
 public static class UnicodeText

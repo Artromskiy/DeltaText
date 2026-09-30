@@ -96,7 +96,7 @@ public class DeltaTextService : ITextService
             if (request.Mode == GlyphImageMode.Color && request.Color is { PaletteIndex: not 0 })
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts fork build exposes the default color palette only.");
+                    "The bundled SixLabors.Fonts backend exposes the default color palette only.");
             }
 
             var cacheKey = new GlyphImageCacheKey(
@@ -339,13 +339,13 @@ public class DeltaTextService : ITextService
         if (!request.Script.IsAuto)
         {
             throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts fork build currently uses automatic script inference.");
+                "The bundled SixLabors.Fonts backend currently uses automatic script inference.");
         }
 
         if (request.Language is not null)
         {
             throw new NotSupportedException(
-                "The DeltaText SixLabors.Fonts fork build currently uses automatic language inference.");
+                "The bundled SixLabors.Fonts backend currently uses automatic language inference.");
         }
 
         foreach (var feature in request.Features.Span)
@@ -353,19 +353,19 @@ public class DeltaTextService : ITextService
             if (feature.Range is not null)
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts fork build supports feature tags only for the complete text span.");
+                    "The bundled SixLabors.Fonts backend supports feature tags only for the complete text span.");
             }
 
             if (feature.Value > 1)
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts fork build supports only Boolean OpenType feature values.");
+                    "The bundled SixLabors.Fonts backend supports only Boolean OpenType feature values.");
             }
 
             if (feature.Value == 0 && feature.Tag.Value != KernTag)
             {
                 throw new NotSupportedException(
-                    "The DeltaText SixLabors.Fonts fork build cannot disable an arbitrary default OpenType feature.");
+                    "The bundled SixLabors.Fonts backend cannot disable an arbitrary default OpenType feature.");
             }
         }
     }

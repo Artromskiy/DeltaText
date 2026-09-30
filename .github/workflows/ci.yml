@@ -19,8 +19,6 @@ env:
   DOTNET_NOLOGO: 1
   NUGET_PACKAGES: ${{ github.workspace }}/artifacts/.nuget/packages
   NUGET_GITHUB_SOURCE: https://nuget.pkg.github.com/Artromskiy/index.json
-  SIXLABORS_FONTS_COMMIT: c68b27d683c701ca254d5cfc6487c699954f19ff
-  SIXLABORS_FONTS_PACKAGE_VERSION: 3.1.0-source.c68b27d
 
 jobs:
   validate:
@@ -56,27 +54,6 @@ jobs:
             --password "$PACKAGE_TOKEN" \
             --store-password-in-clear-text
 
-      - name: Checkout pinned SixLabors Fonts fork
-        uses: actions/checkout@v7
-        with:
-          repository: Artromskiy/Fonts
-          ref: ${{ env.SIXLABORS_FONTS_COMMIT }}
-          path: third_party/SixLabors.Fonts
-
-      - name: Restore SixLabors build infrastructure
-        run: git -C third_party/SixLabors.Fonts submodule update --init --recursive shared-infrastructure
-
-      - name: Pack pinned SixLabors Fonts fork
-        run: |
-          dotnet pack third_party/SixLabors.Fonts/src/SixLabors.Fonts/SixLabors.Fonts.csproj \
-            -c Release \
-            --output "$RUNNER_TEMP/sixlabors-feed" \
-            -p:PackageId=SixLabors.Fonts.Delta \
-            -p:PackageVersion="$SIXLABORS_FONTS_PACKAGE_VERSION" \
-            -p:MinVerVersionOverride="$SIXLABORS_FONTS_PACKAGE_VERSION" \
-            -p:RepositoryUrl=https://github.com/Artromskiy/Fonts \
-            --disable-build-servers -m:1 /p:UseSharedCompilation=false
-
       - name: Materialize SixLabors license
         env:
           SIXLABORS_LICENSE: ${{ secrets.SIXLABORS_LICENSE }}
@@ -90,15 +67,11 @@ jobs:
       - name: Restore
         run: |
           dotnet restore src/DeltaText/DeltaText.csproj \
-            --source "$RUNNER_TEMP/sixlabors-feed" \
             --source "$NUGET_GITHUB_SOURCE" \
-            --source https://api.nuget.org/v3/index.json \
-            -p:SixLaborsFontsPackageSource="$RUNNER_TEMP/sixlabors-feed"
+            --source https://api.nuget.org/v3/index.json
           dotnet restore tests/DeltaText.Tests/DeltaText.Tests.csproj \
-            --source "$RUNNER_TEMP/sixlabors-feed" \
             --source "$NUGET_GITHUB_SOURCE" \
-            --source https://api.nuget.org/v3/index.json \
-            -p:SixLaborsFontsPackageSource="$RUNNER_TEMP/sixlabors-feed"
+            --source https://api.nuget.org/v3/index.json
 
       - name: Release build
         env:

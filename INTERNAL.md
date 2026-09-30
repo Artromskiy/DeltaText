@@ -10,16 +10,16 @@ service disposal. No package object or native handle crosses
 `DeltaTextService`; no font-backend implementation type is part of the
 cross-project contract.
 
-The pinned `SixLabors.Fonts.Delta` 3.1.0 package performs OpenType layout, fallback selection and
-outline callbacks. Bidi formatting controls are removed from the layout metrics before
-they are paired with renderer callbacks, because controls have source mapping
-but no rendered glyph. Fallback identity comes from each returned
+The public `SixLabors.Fonts` 3.1.3 package performs OpenType layout,
+fallback selection and outline callbacks. Bidi formatting controls are removed
+from the layout metrics before they are paired with renderer callbacks, because
+controls have source mapping but no rendered glyph. Fallback identity comes from each returned
 `GlyphMetrics.Font`, not from the enclosing text run. Shaping output is copied
 into contract-owned arrays.
 
 The adapter passes globally enabled Boolean feature tags to
 `TextOptions.FeatureTags` and maps `kern=0` to `KerningMode.None`. The DeltaText
-fork adapter currently does not map script/language selectors,
+adapter currently does not map script/language selectors,
 ranged feature API, arbitrary feature values or color-palette selection, so
 those requests are rejected at the boundary rather than being silently
 dropped.
@@ -97,8 +97,8 @@ contract has a replacement.
 | Source area | Current limitation | Required follow-up |
 |---|---|---|
 | `BidiResolver` | The managed data-driven resolver passes all 91,707 Unicode 17 `BidiCharacterTest` cases through L2. The corpus does not cover UAX #9 L3/L4 line-layout rules. | Keep the corpus fixture/command in the conformance loop; add separate line-layout evidence before making an L3/L4 claim. |
-| `DeltaTextService` direction/feature adapter | The DeltaText SixLabors.Fonts fork adapter does not map all contract fields. Vertical direction is currently collapsed to backend `Auto`; unsupported script, language, ranged and valued feature requests are rejected. | Add explicit backend mappings or keep these requests rejected; never silently discard direction or feature semantics. |
-| `FontFace.TryCreateOutline` | Direct glyph-ID metrics and rendering depend on the pinned SixLabors fork's glyph-id API. | Keep the fork API covered by the direct-glyph regression fixture when upgrading the package. |
+| `DeltaTextService` direction/feature adapter | The SixLabors.Fonts adapter does not map all contract fields. Vertical direction is currently collapsed to backend `Auto`; unsupported script, language, ranged and valued feature requests are rejected. | Add explicit backend mappings or keep these requests rejected; never silently discard direction or feature semantics. |
+| `FontFace.TryCreateOutline` | Direct glyph-ID metrics and rendering use SixLabors.Fonts' glyph-id API. | Keep this API covered by the direct-glyph regression fixture when upgrading the package. |
 | `ManagedGlyphRasterizer.RenderColor` | Color output is flattened through outline layers and falls back to a foreground-colored outline for unsupported formats. | Add full COLR v1/SVG paint traversal, transforms and palette handling when the managed backend exposes them safely. |
 | `MsdfGeometry` / `MsdfRasterizer` | Edge coloring, grid broad phase and distance evaluation are deterministic baseline implementations. | Add measured corner-quality and difficult-contour coverage, then optimize only against a representative workload. |
 | `CpuTextRenderer` | The request overload creates one owned bitmap and deliberately does not retain shaping state. | Use the `Render(ShapedText, ...)` overload for unchanged text; atlas/cache ownership remains outside DeltaText. |
